@@ -1,6 +1,6 @@
 import numpy as np
 
-from mab.posteriors import Posterior
+from mab.posteriors import Posterior, SinglePosteriors
 
 
 class GaussianPosterior(Posterior):
@@ -32,3 +32,9 @@ class GaussianPosterior(Posterior):
         n = len(self.rewards)
         t_sample = self.rng.standard_t(self._freedom(n))
         return self._mean + (t_sample * self.sigma(n))
+
+
+class GaussianPosteriors(SinglePosteriors):
+    """Gaussian posteriors for a given number of bandit arms."""
+    def __init__(self, nr_arms, seed):
+        super(GaussianPosteriors, self).__init__(nr_arms, GaussianPosterior, seed)

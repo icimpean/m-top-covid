@@ -12,7 +12,7 @@ class Sampling(object):
     def best_arm(self, t):
         """Get the index with the highest sampled posterior reward."""
         # Sample the posteriors
-        samples = self.posteriors.sample_all()
+        samples = self.posteriors.sample_all(t)
         best_arm = np.argmax(samples)
         return best_arm
 

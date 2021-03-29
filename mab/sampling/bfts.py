@@ -6,17 +6,22 @@ from mab.sampling import Sampling
 
 class BFTS(Sampling):
     """Boundary Focused Thompson Sampling"""
-    def __int__(self, posteriors: Posteriors, top_m, seed):
+    def __init__(self, posteriors: Posteriors, top_m, seed):
         # Super call
-        super(BFTS, self).__int__(posteriors, seed)
+        super(BFTS, self).__init__(posteriors, seed)
         #
         self.m = top_m
+
+    @staticmethod
+    def new(top_m):
+        """Workaround to add a given top_m arms to the sampling method"""
+        return lambda posteriors, seed: BFTS(posteriors, top_m, seed)
 
     def sample_arm(self, t):
         """Sample an arm based on the sampling method."""
         # Sample all arms and order them
         theta = self.posteriors.sample_all(t)
-        order = np.argsort(-theta)
+        order = np.argsort(-np.array(theta))
         # Choose an arm from the boundary (top_m boundary)
         arm_i = order[self.m - 1 + np.random.choice([0, 1])]
         return arm_i
