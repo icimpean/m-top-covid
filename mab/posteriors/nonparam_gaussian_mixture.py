@@ -13,13 +13,8 @@ class NGMPosterior(GroupPosterior, VariationalPosterior):
 
     TODO: documentation
     """
-    def __init__(self, nr_arms,
-                 k=2, prior_k=2,
-                 d_context=2,
-                 t_max=10,
-                 pi=None, theta=None, sigma=None,
-                 variational_max_iter=100, variational_lb_eps=0.001,
-                 seed=None):
+    def __init__(self, nr_arms, k, prior_k, d_context, t_max,
+                 pi, theta, sigma, variational_max_iter, variational_lb_eps, seed=None):
         # Super call
         super(GroupPosterior, self).__init__(nr_arms, seed)
         # Seed the random generators
@@ -31,15 +26,14 @@ class NGMPosterior(GroupPosterior, VariationalPosterior):
         # Context (or None if not used/available)
         self.d_context = d_context
         self.context = None
-        self.context = np.ones(size=(self.d_context, self.t_max))  # Static context
+        self.context = np.ones(shape=(self.d_context, self.t_max))  # Static context
         # Number of arms
         self.nr_arms = nr_arms
         self._len = self.nr_arms
 
         # Reward function
-        self.reward_function_dist = stats.norm(seed=self.seed)
-        self.reward_prior_dist = 'NIG'
-        self.prior_nig = stats.invgamma(seed=self.seed)  # inverse gamma prior
+        self.reward_function_dist = stats.norm
+        self.prior_nig = stats.invgamma  # inverse gamma prior
 
         # Variational parameters
         self.variational_max_iter = variational_max_iter
@@ -65,16 +59,10 @@ class NGMPosterior(GroupPosterior, VariationalPosterior):
         # Sigmas (prior + posterior)
         self.prior_sigma, self.sigma = self._init_emission_variance(sigma)
 
-        #
-        #
-        # TODO: cleanup below
-        #
-        #
-
+        # The actions and rewards used
         self.actions = np.zeros((self.nr_arms, self.t_max))
         self.rewards = np.zeros_like(self.actions)
         self.rewards_expected = np.zeros_like(self.rewards)
-        self.true_expected_rewards = None
 
         # The predicted distributions of the arms
         self.means = np.zeros((self.nr_arms, self.t_max))
@@ -135,13 +123,14 @@ class NGMPosterior(GroupPosterior, VariationalPosterior):
 
     def update(self, arm, reward, t):
         # Add the received reward
+        self.actions[arm, t] = 1
         self.rewards[arm, t] = reward
         # Update the posteriors
         self.update_posterior(t)
 
     def sample_all(self, t):
         # Sample each arm
-        samples = self.rng.multinomial(1, self.means_per_arm(t), size=1)
+        samples = self.rng.multinomial(1, self.means_per_arm(t), size=1)[0]
         # self.actions[self.rng.multinomial(1, self.means[:, t], size=1).sum(axis=0).argmax(), t] = 1
         # action = np.where(self.actions[:, t] == 1)[0][0]
         return samples

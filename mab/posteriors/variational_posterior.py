@@ -1,9 +1,11 @@
+import copy
 import logging
 
 import numpy as np
 import scipy.special as special
 
 
+# noinspection PyUnresolvedReferences
 class VariationalPosterior(object):
     """A Linear Gaussian Mixture Posterior, with Normal Inverse Gamma conjugate prior.
     A variational update
@@ -37,6 +39,7 @@ class VariationalPosterior(object):
             self._update_variational_params()
             lower_bound[n_iter] = self._update_variational_lowerbound()
             print(f't={t}, n_iter={n_iter} with lower bound={lower_bound[n_iter]}')
+        # print(f't={t}, n_iter={n_iter} with lower bound={lower_bound[n_iter]}')
 
     def _update_variational_resp(self):
         # Variational responsibilities for linear Gaussian Mixture with Normal Inverse Gamma conjugate prior
@@ -87,7 +90,7 @@ class VariationalPosterior(object):
                                np.dot(np.linalg.inv(self.sigma[a, k, :, :]), self.theta[a, k, :]))
                 )
 
-    def _update_variational_lowerbound(self):  # TODO: used?
+    def _update_variational_lowerbound(self):
         # Indicators for picked arms
         tIdx, aIdx = np.where(self.actions.T)
         atIdx = np.arange(aIdx.size)
@@ -167,9 +170,10 @@ class VariationalPosterior(object):
         # Random proportions
         if pi is None:
             logging.debug(f"Using random mixture proportions.")
-            new_pi = self.rng.random(size=shape)
+            new_pi = self.rng.random(shape)
             # Probabilities must sum up to 1 per arm
-            new_pi /= new_pi.sum(axis=1)
+            new_pi = new_pi / new_pi.sum(axis=1, keepdims=True)
+
         # Use given proportions
         else:
             logging.debug(f"Using given mixture proportions.")
@@ -177,7 +181,7 @@ class VariationalPosterior(object):
             assert len(pi) == self.nr_arms * self.k
             new_pi = np.reshape(pi, newshape=shape)
             # Probabilities must sum up to 1 per arm
-            assert np.all(new_pi.sum(axis=1) == np.ones(self.nr_arms))
+            assert np.all(new_pi.sum(axis=1, keepdims=True) == np.ones(self.nr_arms))
         # Return the mixture proportions
         return new_pi
 
@@ -196,17 +200,8 @@ class VariationalPosterior(object):
         prior_theta = np.ones(shape=shape)
         for k in range(self.prior_K):
             prior_theta[:, k] = k
-        # Random parameters
-        if theta is None:
-            logging.debug(f"Using random regression parameters.")
-            new_theta = self.rng.standard_normal(size=shape)
-        # Use given proportions
-        else:
-            logging.debug(f"Using given regression parameters.")
-            # Enough values should be given
-            assert len(theta) == self.nr_arms * self.k * self.d_context
-            new_theta = np.reshape(theta, newshape=shape)
         # Return the regression parameters
+        new_theta = copy.deepcopy(prior_theta)
         return prior_theta, new_theta
 
     def _init_emission_variance(self, sigma=None):
@@ -219,22 +214,12 @@ class VariationalPosterior(object):
         Returns:
             None.
         """
-        shape = (self.nr_arms, self.k)
         prior_shape = (self.nr_arms, self.k, self.d_context, self.d_context)
         # The initial sigma for the prior
         prior_sigma = np.zeros(shape=prior_shape)
         for arm in range(self.nr_arms):
             for k in range(self.prior_K):
                 prior_sigma[arm, k] = np.eye(self.d_context)
-        # Unit variance
-        if sigma is None:
-            logging.debug(f"Using a unit variance.")
-            new_sigma = np.ones(size=shape)
-        # Use given proportions
-        else:
-            logging.debug(f"Using given emission variance.")
-            # Enough values should be given
-            assert len(sigma) == self.nr_arms * self.k
-            new_sigma = np.reshape(sigma, newshape=shape)
         # Return the regression parameters
+        new_sigma = copy.deepcopy(prior_sigma)
         return prior_sigma, new_sigma
