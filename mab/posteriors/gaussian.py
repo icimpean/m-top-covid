@@ -36,5 +36,5 @@ class GaussianPosterior(Posterior):
 
 class GaussianPosteriors(SinglePosteriors):
     """Gaussian posteriors for a given number of bandit arms."""
-    def __init__(self, nr_arms, seed):
+    def __init__(self, nr_arms, seed=None):
         super(GaussianPosteriors, self).__init__(nr_arms, GaussianPosterior, seed)

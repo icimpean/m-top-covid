@@ -1,11 +1,14 @@
+from typing import Type
+
 from mab.bandits.bandit import Bandit
 from mab.posteriors.nonparam_gaussian_mixture import NGMPosterior
+from mab.sampling import Sampling
 from mab.sampling.thompson_sampling import ThompsonSampling
 
 
 class GaussianMixtureBandit(Bandit):
     """The class implementing a nonparametric gaussian mixture bandit with Thompson sampling"""
-    def __init__(self, nr_arms, env, t_max, sampling_method=ThompsonSampling,
+    def __init__(self, nr_arms, env, t_max, sampling_method: Type[Sampling] = ThompsonSampling,
                  k=2, prior_k=2, d_context=2, pi=None, theta=None, sigma=None,
                  variational_max_iter=100, variational_lb_eps=0.001, seed=None):
         # Create the posteriors and sampling method

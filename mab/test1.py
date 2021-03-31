@@ -6,16 +6,16 @@ from mab.sampling.thompson_sampling import ThompsonSampling
 
 if __name__ == '__main__':
 
-    s = 0
+    s = 0  # Integer (or None for random seed configuration)
     n_arms = 10
     steps = 1000
-    env = GaussianEnv(n_arms)
+    env = GaussianEnv(n_arms, seed=s)
     env.print_info()
     env.plot_rewards()
 
     # The sampling method
-    # sampling_method = ThompsonSampling
-    sampling_method = BFTS.new(top_m=2)
+    sampling_method = ThompsonSampling
+    # sampling_method = BFTS.new(top_m=2)
 
     # Gaussian posterior bandit
     bandit = GaussianBandit(n_arms, env, sampling_method, seed=s)
@@ -23,4 +23,4 @@ if __name__ == '__main__':
     # bandit = GaussianMixtureBandit(n_arms, env, sampling_method=sampling_method, t_max=steps, seed=s)
 
     # Let the bandit run for the given number of steps
-    bandit.play_bandit(steps=steps, initialise_arms=0)
+    bandit.play_bandit(steps=steps, initialise_arms=3)

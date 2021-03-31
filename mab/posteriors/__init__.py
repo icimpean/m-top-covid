@@ -36,8 +36,6 @@ class Posteriors(object):
         # Store the arguments
         self.nr_arms = nr_arms
         self.seed = seed
-        # Set the seed
-        np.random.seed(seed)
         #
         self._len = 0
 
@@ -71,7 +69,8 @@ class SinglePosteriors(Posteriors):
         # Super call
         super(SinglePosteriors, self).__init__(nr_arms, seed)
         # Initialise the posteriors
-        self.posteriors: List[Posterior] = [posterior_type.new(seed+i) for i in range(nr_arms)]
+        _seed = np.random.randint(0, 1000) if seed is None else seed
+        self.posteriors: List[Posterior] = [posterior_type.new(_seed+i) for i in range(nr_arms)]
         self._len = len(self.posteriors)
         self.arm_means = [0 for _ in self.posteriors]
 
@@ -123,11 +122,6 @@ class GroupPosterior(Posteriors):
     def __init__(self, nr_arms, seed):
         # Super call
         super(GroupPosterior, self).__init__(nr_arms, seed)
-        # Store the arguments
-        self.nr_arms = nr_arms
-        self.seed = seed
-        # Set the seed
-        np.random.seed(seed)
         #
         self._len = 0
 

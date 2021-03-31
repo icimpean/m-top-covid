@@ -8,6 +8,7 @@ class Bandit(object):
         self.env = env
         self.sampling = sampling_method
         self.posteriors = self.sampling.posteriors
+        self.seed = seed
 
     def best_arm(self, t):
         """Select the best arm based on the current posteriors."""

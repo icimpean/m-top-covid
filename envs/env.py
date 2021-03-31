@@ -8,7 +8,7 @@ class Env(object):
 
     TODO: documentation
     """
-    def __init__(self, seed):
+    def __init__(self, seed=None):
         # Set the seed
         self.seed = seed
         np.random.seed(self.seed)
@@ -61,7 +61,7 @@ class GaussianEnv(Env):
         self.action_space = (self.nr_actions,)
 
         # The rewards follow a gaussian distribution (chosen randomly)
-        self.rng = np.random.default_rng()
+        self.rng = np.random.default_rng(seed=seed)
         self.means = self.rng.uniform(0, 20, size=self.nr_actions) * 0.5
         self.std_dev = self.rng.random(size=self.nr_actions) * 3 + 0.5
 
