@@ -16,7 +16,7 @@ class NGMPosterior(GroupPosterior, VariationalPosterior):
     def __init__(self, nr_arms, k, prior_k, d_context, t_max,
                  pi, theta, sigma, variational_max_iter, variational_lb_eps, seed=None):
         # Super call
-        super(GroupPosterior, self).__init__(nr_arms, seed)
+        super(NGMPosterior, self).__init__(nr_arms, seed)
         # Seed the random generators
         np.random.seed(self.seed)
         self.rng = np.random.default_rng(seed=seed)
