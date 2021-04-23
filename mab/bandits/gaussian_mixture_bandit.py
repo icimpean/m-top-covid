@@ -7,7 +7,10 @@ from mab.sampling.thompson_sampling import ThompsonSampling
 
 
 class GaussianMixtureBandit(Bandit):
-    """The class implementing a nonparametric gaussian mixture bandit with Thompson sampling"""
+    """The class implementing a nonparametric gaussian mixture bandit with Thompson sampling.
+
+    Based on: https://github.com/iurteaga/bandits
+    """
     def __init__(self, nr_arms, env, t_max, sampling_method: Type[Sampling] = ThompsonSampling,
                  k=2, prior_k=2, d_context=2, pi=None, theta=None, sigma=None,
                  variational_max_iter=100, variational_lb_eps=0.001, seed=None):

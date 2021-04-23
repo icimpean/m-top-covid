@@ -28,4 +28,4 @@ if __name__ == '__main__':
     bandit = BayesianGaussianMixtureBandit(n_arms, env, sampling_method, k=2, seed=s)
 
     # Let the bandit run for the given number of steps
-    bandit.play_bandit(steps=steps, initialise_arms=3)
+    bandit.play_bandit(episodes=steps, initialise_arms=3)

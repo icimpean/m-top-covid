@@ -4,10 +4,7 @@ import scipy.stats as stats
 
 
 class Env(object):
-    """An environment an algorithm can interact with
-
-    TODO: documentation
-    """
+    """An environment an algorithm can interact with"""
     def __init__(self, seed=None):
         # Set the seed
         self.seed = seed

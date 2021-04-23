@@ -65,12 +65,12 @@ class SinglePosteriors(Posteriors):
 
     TODO: documentation
     """
-    def __init__(self, nr_arms, posterior_type, seed):
+    def __init__(self, nr_arms, posterior_type, seed, **args):
         # Super call
         super(SinglePosteriors, self).__init__(nr_arms, seed)
         # Initialise the posteriors
         _seed = np.random.randint(0, 1000) if seed is None else seed
-        self.posteriors: List[Posterior] = [posterior_type.new(_seed+i) for i in range(nr_arms)]
+        self.posteriors: List[Posterior] = self._create_posteriors(_seed, posterior_type)
         self._len = len(self.posteriors)
         self.arm_means = [0 for _ in self.posteriors]
 
@@ -92,6 +92,9 @@ class SinglePosteriors(Posteriors):
         else:
             self._n = 0
             raise StopIteration
+
+    def _create_posteriors(self, seed, posterior_type):
+        return [posterior_type.new(seed + i) for i in range(self.nr_arms)]
 
     def update(self, arm, reward, t):
         # Update the posterior

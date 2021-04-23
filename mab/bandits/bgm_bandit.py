@@ -7,7 +7,7 @@ from mab.sampling.thompson_sampling import ThompsonSampling
 
 
 class BayesianGaussianMixtureBandit(Bandit):
-    """The class implementing a gaussian mixture bandit"""
+    """The class implementing a bayesian gaussian mixture bandit"""
     def __init__(self, nr_arms, env, sampling_method: Type[Sampling] = ThompsonSampling,
                  k=2, variational_max_iter=100, variational_tol=0.001, seed=None):
         # Create the posteriors and sampling method

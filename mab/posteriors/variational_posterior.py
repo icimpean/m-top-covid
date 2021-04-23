@@ -10,7 +10,7 @@ class VariationalPosterior(object):
     """A Linear Gaussian Mixture Posterior, with Normal Inverse Gamma conjugate prior.
     A variational update
 
-    TODO: documentation
+    Based on: https://github.com/iurteaga/bandits
     """
 
     #####################

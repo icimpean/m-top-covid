@@ -11,7 +11,7 @@ class NGMPosterior(GroupPosterior, VariationalPosterior):
     """A Linear Gaussian Mixture Posterior, with Normal Inverse Gamma conjugate prior.
     Uses variational updates.
 
-    TODO: documentation
+    Based on: https://github.com/iurteaga/bandits
     """
     def __init__(self, nr_arms, k, prior_k, d_context, t_max,
                  pi, theta, sigma, variational_max_iter, variational_lb_eps, seed=None):
