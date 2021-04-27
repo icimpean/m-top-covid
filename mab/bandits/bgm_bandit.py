@@ -9,9 +9,9 @@ from mab.sampling.thompson_sampling import ThompsonSampling
 class BayesianGaussianMixtureBandit(Bandit):
     """The class implementing a bayesian gaussian mixture bandit"""
     def __init__(self, nr_arms, env, sampling_method: Type[Sampling] = ThompsonSampling,
-                 k=2, variational_max_iter=100, variational_tol=0.001, seed=None):
+                 k=2, variational_max_iter=100, variational_tol=0.001, seed=None, log_file="./bandit_log.csv"):
         # Create the posteriors and sampling method
         posteriors = BGMPosteriors(nr_arms, seed, k, variational_tol, variational_max_iter)
         sampling = sampling_method(posteriors, seed)
         # Super call
-        super(BayesianGaussianMixtureBandit, self).__init__(nr_arms, env, sampling, seed)
+        super(BayesianGaussianMixtureBandit, self).__init__(nr_arms, env, sampling, seed, log_file)

@@ -13,10 +13,10 @@ class GaussianMixtureBandit(Bandit):
     """
     def __init__(self, nr_arms, env, t_max, sampling_method: Type[Sampling] = ThompsonSampling,
                  k=2, prior_k=2, d_context=2, pi=None, theta=None, sigma=None,
-                 variational_max_iter=100, variational_lb_eps=0.001, seed=None):
+                 variational_max_iter=100, variational_lb_eps=0.001, seed=None, log_file="./bandit_log.csv"):
         # Create the posteriors and sampling method
         posteriors = NGMPosterior(nr_arms, k, prior_k, d_context, t_max, pi, theta, sigma,
                                   variational_max_iter, variational_lb_eps, seed)
         sampling = sampling_method(posteriors, seed)
         # Super call
-        super(GaussianMixtureBandit, self).__init__(nr_arms, env, sampling, seed)
+        super(GaussianMixtureBandit, self).__init__(nr_arms, env, sampling, seed, log_file)

@@ -6,6 +6,7 @@ import random
 
 from envs.env import Env
 from envs.stride_env.action_wrapper import ActionWrapper
+from resources.vaccine_supply import VaccineSupply, ConstantVaccineSupply
 
 
 class StrideMDPEnv(Env):
@@ -26,16 +27,16 @@ class StrideMDPEnv(Env):
             selecting a new action. Default: 2 * 30 = 2 months.
         config_file: The XML configuration file for the STRIDE simulator.
             Defaults to provided file in this directory.
-        vaccine_availability: The CSV file with the number of available vaccines
-            per vaccine type. Defaults to None.
+        available_vaccines: The VaccineSupply for the simulation.
+            Defaults to ConstantVaccineSupply.
         reward_type: How to process the reward signal before providing it to the agent.
             Accepted values:
-                - 'neg': returns the negative of the reward signal
+                - 'neg':  returns the negative of the reward signal
                 - 'norm': normalise the reward based on the entire population
-                - None: leaves the reward unchanged
+                -  None:  leaves the reward unchanged
     """
     def __init__(self, states=False, seed=0, episode_duration=6 * 30, step_size=2 * 30,
-                 config_file="./run_default.xml", vaccine_availability=None,
+                 config_file="./run_default.xml", available_vaccines: VaccineSupply = ConstantVaccineSupply(),
                  reward_type=None):
         # Super call
         super(StrideMDPEnv, self).__init__(seed)
@@ -57,7 +58,7 @@ class StrideMDPEnv(Env):
 
         # Action space for an action
         self._action_space = len(stride.AllVaccineTypes) ** len(stride.AllAgeGroups)
-        self.action_wrapper = ActionWrapper(1, episode_duration, vaccine_availability)
+        self.action_wrapper = ActionWrapper(available_vaccines)
 
         # Reward
         self.reward_type = reward_type
@@ -92,20 +93,21 @@ class StrideMDPEnv(Env):
             state, reward, done, info - feedback from the interaction with the environment.
         """
         # Each arm (action) is a collection of actions per age group
-        combined_action = self.action_wrapper.get_combined_action(action)
+        days = range(self._timestep, self._timestep + self.step_size)
+        combined_action = self.action_wrapper.get_combined_action(action, days)
         print(f"Chosen action {action}")
         state = infected = None
         info = {}
         # Execute the action to vaccinate and simulate for as many days as required
-        for _ in range(self.step_size):
-            self._vaccinate(combined_action)
+        for t in range(self.step_size):
+            self._vaccinate(combined_action[t])
             infected = self._mdp.SimulateDay()
         # Transform the reward as requested
         reward = self._transform_reward(infected)
         # Another timestep has passed
         self._timestep += 1
         # The episode is done once we reach the episode duration
-        done = self._timestep >= self.episode_duration
+        done = self._timestep >= self.steps_per_episode
         # Give feedback
         return state, reward, done, info
 
@@ -139,35 +141,3 @@ class StrideMDPEnv(Env):
             return (self._population_size - infected) / self._population_size
         else:
             return infected
-
-
-class BanditStrideMDPEnv(StrideMDPEnv):
-    """Wrapper for bandit algorithm
-
-    Attributes:
-        states: (Boolean) Indicating whether or not to use states as part of the
-            agent-environment interaction. Default: False.
-        seed: (Int) The random seed to use for initialising the random generators
-            and the simulator. Default: 0.
-        episode_duration: (Int) The length in days of a single simulation run.
-            Default: 6 * 30 = 6 months.
-        step_size: (Int) The number of days to follow a certain action before
-            selecting a new action. Default: 2 * 30 = 2 months.
-        config_file: The XML configuration file for the STRIDE simulator.
-            Defaults to provided file in this directory.
-        vaccine_availability: The CSV file with the number of available vaccines
-            per vaccine type. Defaults to None.
-        reward_type: How to process the reward signal before providing it to the agent.
-            Accepted values:
-                - 'neg': returns the negative of the reward signal
-                - 'norm': normalise the reward based on the entire population
-                - None: leaves the reward unchanged
-    """
-    def __init__(self, states=False, seed=0, episode_duration=6 * 30, step_size=2 * 30,
-                 config_file="./run_default.xml", vaccine_availability=None,
-                 reward_type=None):
-        # Super call
-        super(BanditStrideMDPEnv, self).__init__(states, seed, episode_duration, step_size, config_file,
-                                                 vaccine_availability, reward_type)
-        # Action is defined as a combination of actions over entire episode
-        self.action_wrapper = ActionWrapper(step_size, episode_duration, vaccine_availability)

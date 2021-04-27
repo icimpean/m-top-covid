@@ -5,41 +5,38 @@ import numpy as np
 import random
 from itertools import product
 
+from resources.vaccine_supply import ConstantVaccineSupply, VaccineSupply
+
 
 class ActionWrapper(object):
     """An action wrapper for STRIDE, translating an agent's action to a collection of actions."""
-    def __init__(self, step_size, episode_duration, vaccine_availability=None):
+    def __init__(self, available_vaccines: VaccineSupply = ConstantVaccineSupply()):
         # Store the arguments
-        self.step_size = step_size
-        self.episode_duration = episode_duration
-        self.vaccine_availability = vaccine_availability
-        # TODO: vaccine availability loaded from file, per day
-        if self.vaccine_availability is None:
-            self.vaccine_availability = {
-                v_type: 1000 for v_type in stride.AllVaccineTypes if v_type != stride.VaccineType.noVaccine
-            }
+        self.available_vaccines = available_vaccines
         # Action space
-        self._vaccine_options = stride.AllVaccineTypes
-        self._age_groups = stride.AllAgeGroups
-        self.decisions = self.episode_duration // self.step_size
         self._all_actions = self._create_action_array()
 
     def get_raw_action(self, arm):
         """Get the raw action, corresponding to a vaccine type per age group"""
         return self._all_actions[arm]
 
-    def get_combined_action(self, arm):
+    def get_combined_action(self, arm, days):
         """Get the combined action, consisting of one action per age group that needs vaccinating.
 
         Args:
             arm: (Int) The arm to translate into a combined action.
+            days: (List[Int]) The days of the simulation to get the available vaccines for.
 
         Returns:
             A list of (availableVaccines, ageGroup, vaccineType) tuples, each representing a call to vaccinate.
         """
-        # TODO: 3 decisions
         vaccine_per_group = self.get_raw_action(arm)
-        return self._divide_vaccines(vaccine_per_group, self.vaccine_availability)
+        return self._divide_vaccines_days(vaccine_per_group, days)
+
+    def _divide_vaccines_days(self, vaccine_per_group, days):
+        available_vaccines = self.available_vaccines.get_available_vaccines(days)
+        actions = [self._divide_vaccines(vaccine_per_group, availability) for availability in available_vaccines]
+        return actions
 
     @staticmethod
     def _divide_vaccines(vaccine_per_group, available_vaccines):
@@ -63,7 +60,6 @@ class ActionWrapper(object):
             if len(groups) == 0:
                 continue
             # Get the number of available vaccines for the given vaccine type
-            # TODO: varying availability per day per vaccine type
             available = available_vaccines[v_type]
             # Only one group gets a vaccine
             if len(groups) == 1:
@@ -92,23 +88,21 @@ class ActionWrapper(object):
         # Return the actions
         return actions
 
-    def _create_action_array(self):
+    @staticmethod
+    def _create_action_array():
         # Vaccine types (+ no vaccine) per age group
         vaccines_per_age_group = np.array(list(product(stride.AllVaccineTypes, repeat=len(stride.AllAgeGroups))))
-        # Total # TODO: 3 decisions
-        total_vaccines = np.full(shape=(self.decisions, *vaccines_per_age_group.shape),
-                                 fill_value=vaccines_per_age_group)
-
-        print(total_vaccines)
-
         return vaccines_per_age_group
 
 
 if __name__ == '__main__':  # TODO: remove
-    print(3 ** 5, 3 * 3 ** 5)
 
-    aw = ActionWrapper(step_size=1, episode_duration=3)
-    a = 23#230
+    aw = ActionWrapper()
+    a = 230
+    some_arms = [0, 1, 11, 23, 123, 230]
 
-    print("Raw action:", aw.get_raw_action(a))
-    print("Combined action:", aw.get_combined_action(a))
+    # print("Raw action:", aw.get_raw_action(a))
+    # print("Combined action:", aw.get_combined_action(a, [0]))
+
+    for a in some_arms:
+        print(aw.get_raw_action(a))
