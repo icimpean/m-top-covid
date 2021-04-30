@@ -1,13 +1,11 @@
+from pathlib import Path
 from typing import List
 
 import numpy as np
 
 
 class Posterior(object):
-    """A posterior distribution for a single arm.
-
-    TODO: documentation
-    """
+    """A posterior distribution for a single arm."""
     def __init__(self, seed=None):
         self.seed = seed
         self.rng = np.random.default_rng(seed=seed)
@@ -26,12 +24,17 @@ class Posterior(object):
     def mean(self, t):
         return np.mean(self.rewards)
 
+    def save(self, path: Path):
+        """Save the posterior to the given file path"""
+        raise NotImplementedError
+
+    def load(self, path: Path):
+        """Load the posterior from the given file path"""
+        raise NotImplementedError
+
 
 class Posteriors(object):
-    """The posteriors of a bandit's arms.
-
-    TODO: documentation
-    """
+    """The posteriors of a bandit's arms."""
     def __init__(self, nr_arms, seed):
         # Store the arguments
         self.nr_arms = nr_arms
@@ -59,12 +62,17 @@ class Posteriors(object):
         """Compute the posterior distributions, before sampling an arm for timestep t."""
         raise NotImplementedError
 
+    def save(self, path: Path):
+        """Save the posteriors to the given directory path"""
+        raise NotImplementedError
+
+    def load(self, path: Path):
+        """Load the posteriors from the given directory path"""
+        raise NotImplementedError
+
 
 class SinglePosteriors(Posteriors):
-    """The posteriors of a bandit's arms, built with Posterior instances.
-
-    TODO: documentation
-    """
+    """The posteriors of a bandit's arms, built with Posterior instances."""
     def __init__(self, nr_arms, posterior_type, seed, **args):
         # Super call
         super(SinglePosteriors, self).__init__(nr_arms, seed)
@@ -116,12 +124,19 @@ class SinglePosteriors(Posteriors):
     def compute_posteriors(self, t):
         pass
 
+    def save(self, path: Path):
+        for i in range(self.nr_arms):
+            p_path = path.with_name(f"{path.name}arm_{i}.posterior")
+            self.posteriors[i].save(p_path)
+
+    def load(self, path: Path):
+        for i in range(self.nr_arms):
+            p_path = path.with_name(f"{path.name}arm_{i}.posterior")
+            self.posteriors[i].load(p_path)
+
 
 class GroupPosterior(Posteriors):
-    """The posteriors of a bandit's arms, containing all posteriors.
-
-    TODO: documentation
-    """
+    """The posteriors of a bandit's arms, containing all posteriors."""
     def __init__(self, nr_arms, seed):
         # Super call
         super(GroupPosterior, self).__init__(nr_arms, seed)
@@ -141,4 +156,10 @@ class GroupPosterior(Posteriors):
         raise NotImplementedError
 
     def compute_posteriors(self, t):
+        raise NotImplementedError
+
+    def save(self, path: Path):
+        raise NotImplementedError
+
+    def load(self, path: Path):
         raise NotImplementedError

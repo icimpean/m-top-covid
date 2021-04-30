@@ -1,17 +1,15 @@
 # noinspection PyUnresolvedReferences
 import pylibstride as stride
 
-import random
-
 from envs.stride_env.stride_env import StrideMDPEnv
 from mab.bandits.bgm_bandit import BayesianGaussianMixtureBandit
 from mab.sampling.thompson_sampling import ThompsonSampling
 from resources.vaccine_supply import ConstantVaccineSupply
 
+
 if __name__ == '__main__':
 
     s = 0  # Integer (or None for random seed configuration)
-    random.seed(s)
     n_arms = 3 ** 5
     steps = 10
 
@@ -30,7 +28,8 @@ if __name__ == '__main__':
     env = StrideMDPEnv(states=False, seed=s, episode_duration=episode_duration, step_size=step_size,
                        # config_file="../envs/stride_env/run_default_11M.xml",
                        config_file="../envs/stride_env/run_default.xml",
-                       available_vaccines=vaccine_supply
+                       available_vaccines=vaccine_supply,
+                       reward_type='norm'
                        )
 
     # The sampling method
@@ -41,8 +40,10 @@ if __name__ == '__main__':
     # bandit = GaussianBandit(n_arms, env, sampling_method, seed=s)
     # Sklearn-based implementation (Nonparametric Gaussian Mixture posterior bandit)
     bandit = BayesianGaussianMixtureBandit(n_arms, env, sampling_method, k=2, seed=s,
-                                           log_file="./bandit_log_test_600k_2mo-32thr.csv")
+                                           log_dir="../test_results", save_interval=10,
+                                           )
 
-    # Let the bandit run for the given number of steps
+    # Let the bandit run for the given number of episodes
     # bandit.play_bandit(episodes=3, initialise_arms=3)
     bandit.test_bandit()
+    bandit.save("_end")

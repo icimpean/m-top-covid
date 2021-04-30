@@ -1,3 +1,5 @@
+import random
+
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as stats
@@ -9,6 +11,7 @@ class Env(object):
         # Set the seed
         self.seed = seed
         np.random.seed(self.seed)
+        random.seed(self.seed)
 
         # The observation and action space
         self.observation_space = None

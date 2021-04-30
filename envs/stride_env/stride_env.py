@@ -17,19 +17,17 @@ class StrideMDPEnv(Env):
     https://github.com/icimpean/stride/tree/vaccine (fork)
 
     Attributes:
-        states: (Boolean) Indicating whether or not to use states as part of the
-            agent-environment interaction. Default: False.
-        seed: (Int) The random seed to use for initialising the random generators
-            and the simulator. Default: 0.
-        episode_duration: (Int) The length in days of a single simulation run.
-            Default: 6 * 30 = 6 months.
-        step_size: (Int) The number of days to follow a certain action before
-            selecting a new action. Default: 2 * 30 = 2 months.
-        config_file: The XML configuration file for the STRIDE simulator.
+        states: (Optional) Boolean indicating whether or not to use states as part of the
+            agent-environment interaction.
+        seed: (Optional) The random seed to use for initialising the random generators
+            and the simulator.
+        episode_duration: (Optional) The length in days of a single simulation run.
+        step_size: (Optional) The number of days to follow a certain action before
+            selecting a new action.
+        config_file: (Optional) The XML configuration file for the STRIDE simulator.
             Defaults to provided file in this directory.
-        available_vaccines: The VaccineSupply for the simulation.
-            Defaults to ConstantVaccineSupply.
-        reward_type: How to process the reward signal before providing it to the agent.
+        available_vaccines: (Optional) The VaccineSupply for the simulation.
+        reward_type: (Optional) How to process the reward signal before providing it to the agent.
             Accepted values:
                 - 'neg':  returns the negative of the reward signal
                 - 'norm': normalise the reward based on the entire population
@@ -42,6 +40,7 @@ class StrideMDPEnv(Env):
         super(StrideMDPEnv, self).__init__(seed)
         # Set the seed
         self.seed = seed
+        random.seed(self.seed)
         np.random.seed(self.seed)
 
         # The configuration file for STRIDE
@@ -69,12 +68,15 @@ class StrideMDPEnv(Env):
         self._state = None
         self._timestep = 0
 
-    def reset(self):
+    def reset(self, seed=None, output_dir=None, output_prefix=None):
         """Reset the environment and return the initial state (or None if no states are used)."""
         if self._timestep != 0:
             self._timestep = 0
             self._mdp.End()
-        self._mdp.Create(self.config_file)
+        output_dir = output_dir if output_dir is not None else ""
+        output_prefix = output_prefix if output_prefix is not None else ""
+        seed = seed if seed is not None else self.seed
+        self._mdp.Create(self.config_file, seed, output_dir, output_prefix)
         self._population_size = self._mdp.GetPopulationSize()
         return None
 
@@ -102,6 +104,10 @@ class StrideMDPEnv(Env):
         for t in range(self.step_size):
             self._vaccinate(combined_action[t])
             infected = self._mdp.SimulateDay()
+
+            print(f"infected: {self._mdp.CountInfectedCases()}, exposed: {self._mdp.CountExposedCases()}, "
+                  f"infectious: {self._mdp.CountInfectiousCases()}, symptomatic: {self._mdp.CountSymptomaticCases()}")
+
         # Transform the reward as requested
         reward = self._transform_reward(infected)
         # Another timestep has passed
@@ -112,7 +118,7 @@ class StrideMDPEnv(Env):
         return state, reward, done, info
 
     def _vaccinate(self, combined_action):
-        # TODO parallelize in STRIDE?
+        # Could be parallelized in STRIDE:
         #   multiple age groups could be vaccinated at the same time since they don't overlap
         for action in combined_action:
             print(f"Vaccinating...", action)

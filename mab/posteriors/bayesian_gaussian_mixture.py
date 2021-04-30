@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.mixture import BayesianGaussianMixture
+import pickle
 
 from mab.posteriors import Posterior, SinglePosteriors
 
@@ -36,6 +37,14 @@ class GaussianMixturePosterior(Posterior):
         X, y = self._mixture.sample()
         X = X[0][0]
         return X
+
+    def save(self, path):
+        with open(path, 'wb') as file:
+            pickle.dump(self._mixture, file)
+
+    def load(self, path):
+        with open(path, 'rb') as file:
+            self._mixture = pickle.load(file)
 
 
 class BGMPosteriors(SinglePosteriors):

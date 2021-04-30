@@ -2,6 +2,7 @@
 import pylibstride as stride
 
 import csv
+import datetime
 import urllib.request as request
 
 
@@ -57,6 +58,9 @@ class ObservedVaccineSupply(VaccineSupply):
     """Vaccine supply based on observations of the current vaccinations in Belgium via
         https://covid-vaccinatie.be/en
 
+    Note: For use_administered=False, we assume that the date for the next vaccine delivery of a certain type
+     is known to divide the already supplied vaccines over the intermediate days.
+
     Attributes:
         data_directory: (Optional) The data directory where the CSV files are stored to load in.
             If None, the data is retrieved via a get request.
@@ -67,23 +71,29 @@ class ObservedVaccineSupply(VaccineSupply):
     doses_administered_per_vaccine_url = "https://covid-vaccinatie.be/api/v1/administered-by-vaccine-type.csv"
     doses_delivered_url = "https://covid-vaccinatie.be/api/v1/delivered.csv"
 
-    def __init__(self, data_directory=None):
+    def __init__(self, use_administered, starting_date="",
+                 data_directory=None):
+        self.use_administered = use_administered
+        self.starting_date = starting_date
         self._last_update = None
-        self._vaccine_counts = {}
+        self._vaccine_counts = []
+        if use_administered:
+            self.load_administered(starting_date)
+        else:
+            self.load_delivered(starting_date)
 
-    def get_last_updated(self):
+    def get_last_updated(self):  # TODO: only if outdated, retrieve new data
         """Check when the last update happened"""
         stream = request.urlopen(self.last_updated_url)
         data = stream.read().decode('utf-8')
         last_updated = data.split("\"")[1]
-        # TODO: only if outdated, retrieve new data
         if last_updated != self._last_update:
-            # TODO: new data
-            #
             self._last_update = last_updated
 
     def get_available_vaccines(self, days):
-        available_vaccines = [self._vaccine_counts[day] for day in days]
+        # Avoid indexing errors for missing days: use the last day as counts
+        get_index = lambda d: d if d < len(self._vaccine_counts) else -1
+        available_vaccines = [self._vaccine_counts[get_index(day)] for day in days]
         return available_vaccines
 
     def load_administered(self, starting_date="2021-01-05"):
@@ -133,7 +143,7 @@ class ObservedVaccineSupply(VaccineSupply):
         self._vaccine_counts = available_vaccines
 
     def load_delivered(self, starting_date="2020-12-28"):
-        """Load data from the delivered vaccines. # TODO implement
+        """Load data from the delivered vaccines.
 
         Args:
             starting_date: The starting date from where to gather data.
@@ -145,9 +155,9 @@ class ObservedVaccineSupply(VaccineSupply):
         data = stream.read().decode('utf-8').split("\n")
         reader = csv.reader(data)
 
-        available_vaccines = []
-        current_date = None
-        current_available = {v_type: 0 for v_type in self._v_types}
+        first_dates = {v_type: None for v_type in self._v_types}
+        last_dates = {v_type: None for v_type in self._v_types}
+        counts_per_delivery = {v_type: [] for v_type in self._v_types}
 
         # First row is a header ['date', 'amount', 'manufacturer']
         skip_header = True
@@ -162,23 +172,55 @@ class ObservedVaccineSupply(VaccineSupply):
             # Skip all entries with a date smaller than the starting date
             elif row[0] < starting_date:
                 continue
-            # TODO: remove
-            print(row)
 
-            # Check if the date still matches up with the current one
-            if current_date != row[0] and current_date is not None:
-                available_vaccines.append(current_available)
-                current_available = {v_type: 0 for v_type in self._v_types}
-            current_date = row[0]
+            # Extract the vaccine type
+            v_type = self._get_vaccine_type(row[2])
+            date = datetime.date.fromisoformat(row[0])
+            count = int(row[1])
 
-            # Extract the vaccine type and counts if a vaccine name is provided
-            if row[2] != "":
-                v_type = self._get_vaccine_type(row[2])
-                # Second dose considered as first dose => 1 extra person getting vaccinated that day
-                count = int(row[3]) + int(row[4])
-                current_available[v_type] += count
+            # Keep track of the first and last day, per vaccine type
+            if first_dates[v_type] is None:
+                first_dates[v_type] = date
+            if last_dates[v_type] is None or last_dates[v_type] < date:
+                last_dates[v_type] = date
 
-        self._vaccine_counts = available_vaccines
+            # Update counts for the vaccine type
+            if len(counts_per_delivery[v_type]) != 0 and counts_per_delivery[v_type][-1][0] == date:
+                counts_per_delivery[v_type][-1][1] += count
+            else:
+                counts_per_delivery[v_type].append([date, count])
+
+        # Supplies must start from first date: not supplied vaccines have count 0
+        supplies = {v_type: [] for v_type in self._v_types}
+        first_date = min(first_dates.values())
+        last_date = max(last_dates.values())
+        for v_type, date_counts in counts_per_delivery.items():
+            # Supply counts must start from the first date, even if it doesn't match up
+            first = date_counts[0][0]
+            # Supply doesn't start on the first available date: empty
+            if first_date < first:
+                diff = (first - first_date).days
+                for _ in range(diff):
+                    supplies[v_type].append(0)
+
+            # The current counts last until the next date
+            for i in range(len(date_counts)-1):
+                current_counts = date_counts[i]
+                next_counts = date_counts[i + 1]
+                diff = (next_counts[0] - current_counts[0]).days
+                counts = self.divide(current_counts[1], diff)
+                supplies[v_type].extend(counts)
+
+            # The last count lasts for a week more than the last delivery
+            last_diff = (last_date - date_counts[-1][0]).days + 7
+            counts = self.divide(date_counts[-1][1], last_diff)
+            supplies[v_type].extend(counts)
+
+        # Store the counts grouped per day
+        self._vaccine_counts = []
+        for v_counts in zip(*supplies.values()):
+            available_vaccines = {v_type: v_count for v_type, v_count in zip(self._v_types, v_counts)}
+            self._vaccine_counts.append(available_vaccines)
 
     @staticmethod
     def _get_vaccine_type(name):
@@ -194,20 +236,10 @@ class ObservedVaccineSupply(VaccineSupply):
         else:
             raise RuntimeError(f"Unknown vaccine name: {name}")
 
-
-if __name__ == '__main__':
-    a = 0
-
-    counts = {
-        stride.VaccineType.mRNA: 20000,
-        stride.VaccineType.adeno: 12000,
-    }
-
-    vs = ConstantVaccineSupply(vaccine_type_counts=counts)
-    # vs = ObservedVaccineSupply()
-    # vs.load_administered()
-
-    cs = vs.get_available_vaccines(range(5, 25))
-    print(cs)
-
-
+    @staticmethod
+    def divide(count, divisor):
+        d, m = divmod(count, divisor)
+        new_counts = [d for _ in range(divisor)]
+        for i in range(m):
+            new_counts[i] += 1
+        return new_counts

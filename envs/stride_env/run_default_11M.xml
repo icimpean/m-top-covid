@@ -2,7 +2,7 @@
 <run>
     <age_contact_matrix_file>../../stride_omp_python/data/contact_matrix_flanders_conditional_teachers.xml</age_contact_matrix_file>
     <event_log_level>Transmissions</event_log_level>
-    <event_output_file>true</event_output_file>
+    <event_output_file>false</event_output_file>
     <disease_config_file>../../stride_omp_python/data/disease_covid19_age.xml</disease_config_file>
     <global_information_policy>NoGlobalInformation</global_information_policy>
     <holidays_file>../../stride_omp_python/data/holidays_none.csv</holidays_file>
@@ -13,8 +13,8 @@
     <num_threads>1</num_threads>
     <output_cases>true</output_cases>
     <output_persons>false</output_persons>
-    <output_prefix>./</output_prefix>
-    <output_summary>false</output_summary>
+    <output_prefix>test</output_prefix>
+    <output_summary>true</output_summary>
     <population_file>../../FullPop/pop_belgium11M_c500_teachers_censushh_extended3_size2.csv</population_file>
     <population_type>default</population_type>
     <rng_seed>2020</rng_seed>
