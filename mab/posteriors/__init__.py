@@ -22,7 +22,11 @@ class Posterior(object):
         raise NotImplementedError
 
     def mean(self, t):
-        return np.mean(self.rewards)
+        # Avoid numpy warning for empty self.rewards
+        if len(self.rewards) == 0:
+            return np.nan
+        else:
+            return np.mean(self.rewards, dtype=np.float64)
 
     def save(self, path: Path):
         """Save the posterior to the given file path"""

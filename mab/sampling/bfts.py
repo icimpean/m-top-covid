@@ -5,7 +5,15 @@ from mab.sampling import Sampling
 
 
 class BFTS(Sampling):
-    """Boundary Focused Thompson Sampling"""
+    """Boundary Focused Thompson Sampling
+
+    From: https://github.com/plibin-vub/bfts
+
+    Attributes:
+        posteriors: The Posteriors to apply the sampling method to
+        top_m: The number of posteriors to provide as the top m best posteriors.
+        seed: The seed for initialisation.
+    """
     def __init__(self, posteriors: Posteriors, top_m, seed):
         # Super call
         super(BFTS, self).__init__(posteriors, seed)

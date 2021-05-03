@@ -21,7 +21,7 @@ class Env(object):
         self._state = None
         self._timestep = 0
 
-    def reset(self):
+    def reset(self, **args):
         """Reset the environment and return the state.
 
         By default, there is no state (None).
@@ -51,7 +51,7 @@ class GaussianEnv(Env):
 
     Represents an environment with gaussian rewards per arm.
     """
-    def __init__(self, nr_actions=10, seed=None):
+    def __init__(self, nr_actions=10, seed=None, normalised=False):
         # Super call
         super(GaussianEnv, self).__init__(seed)
 
@@ -59,11 +59,16 @@ class GaussianEnv(Env):
         self.observation_space = None  # MAB setting
         self.nr_actions = nr_actions
         self.action_space = (self.nr_actions,)
+        self.normalised = normalised
 
         # The rewards follow a gaussian distribution (chosen randomly)
         self.rng = np.random.default_rng(seed=seed)
-        self.means = self.rng.uniform(0, 20, size=self.nr_actions) * 0.5
-        self.std_dev = self.rng.random(size=self.nr_actions) * 3 + 0.5
+        if self.normalised:
+            self.means = self.rng.random(size=self.nr_actions)
+            self.std_dev = self.rng.random(size=self.nr_actions)
+        else:
+            self.means = self.rng.uniform(0, 20, size=self.nr_actions) * 0.5
+            self.std_dev = self.rng.random(size=self.nr_actions) * 3 + 0.5
 
     def step(self, action):
         state = None
@@ -73,6 +78,8 @@ class GaussianEnv(Env):
         mean = self.means[action]
         std_dev = self.std_dev[action]
         reward = self.rng.normal(loc=mean, scale=std_dev)
+        if self.normalised:
+            reward = np.clip(reward, 0, 1)
         #
         return state, reward, done, info
 
@@ -101,7 +108,7 @@ class GaussianMixtureEnv(Env):
 
     Represents an environment with rewards drawn from a gaussian mixture distribution per arm.
     """
-    def __init__(self, nr_actions=10, mixtures_per_arm=2, seed=None):
+    def __init__(self, nr_actions=10, mixtures_per_arm=2, seed=None, normalised=False):
         # Super call
         super(GaussianMixtureEnv, self).__init__(seed)
 
@@ -109,6 +116,7 @@ class GaussianMixtureEnv(Env):
         self.observation_space = None  # MAB setting
         self.nr_actions = nr_actions
         self.action_space = (self.nr_actions,)
+        self.normalised = normalised
 
         # The rewards follow a gaussian mixture distribution (randomly initialised)
         self.rng = np.random.default_rng(seed=seed)
@@ -119,8 +127,12 @@ class GaussianMixtureEnv(Env):
         self.pi = self.rng.random(size=(self.nr_actions, self.k))
         self.pi /= self.pi.sum(axis=1, keepdims=True)
         # The means and standard deviations, per mixture per action
-        self.means = self.rng.uniform(0, 20, size=(self.nr_actions, self.k)) * 0.5
-        self.std_dev = self.rng.random(size=(self.nr_actions, self.k)) * 3 + 0.5
+        if self.normalised:
+            self.means = self.rng.random(size=(self.nr_actions, self.k))
+            self.std_dev = self.rng.random(size=(self.nr_actions, self.k))
+        else:
+            self.means = self.rng.uniform(0, 20, size=(self.nr_actions, self.k)) * 0.5
+            self.std_dev = self.rng.random(size=(self.nr_actions, self.k)) * 3 + 0.5
 
     def _sample_reward(self, action):
         # Choose a mixture for the given action, given their probabilities
@@ -129,6 +141,8 @@ class GaussianMixtureEnv(Env):
         mean = self.means[action, k]
         std_dev = self.std_dev[action, k]
         reward = self.rng.normal(loc=mean, scale=std_dev)
+        if self.normalised:
+            reward = np.clip(reward, 0, 1)
         return reward
 
     def step(self, action):

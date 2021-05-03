@@ -8,6 +8,7 @@ class Sampling(object):
     def __init__(self, posteriors: Posteriors, seed):
         self.posteriors = posteriors
         self.seed = seed
+        np.random.seed(self.seed)
 
     def best_arm(self, t):
         """Get the index with the highest sampled posterior reward."""
