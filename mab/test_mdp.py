@@ -40,7 +40,8 @@ if __name__ == '__main__':
     # bandit = GaussianBandit(n_arms, env, sampling_method, seed=s)
     # Sklearn-based implementation (Nonparametric Gaussian Mixture posterior bandit)
     bandit = BayesianGaussianMixtureBandit(n_arms, env, sampling_method, k=2, seed=s,
-                                           log_dir="../test_results", save_interval=10,
+                                           log_dir="../../Data/test_results",
+                                           save_interval=10,
                                            )
 
     # Let the bandit run for the given number of episodes

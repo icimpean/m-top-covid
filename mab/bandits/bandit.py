@@ -98,6 +98,14 @@ class Bandit(object):
         for arm in some_arms:
             self._play(t, lambda _: arm)
             t += 1
+
+        # TODO: remove
+        # self.env.close_x()
+        # import resource
+        # x = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        # print(f"End Resources: {x} bytes ({round(x / 1024, 2)} kB, {round(x / 1024 ** 2, 2)} MB, {round(x / 1024 ** 3, 2)} GB)")
+
+        #
         self.env.close()
 
     def save(self, t):

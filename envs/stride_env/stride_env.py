@@ -1,8 +1,10 @@
 # noinspection PyUnresolvedReferences
 import pylibstride as stride
 
+import gc
 import numpy as np
 import random
+import resource
 
 from envs.env import Env
 from envs.stride_env.action_wrapper import ActionWrapper
@@ -67,18 +69,34 @@ class StrideMDPEnv(Env):
         self.states = states
         self._state = None
         self._timestep = 0
+        self._e = 0
+
+        self._x = []
 
     def reset(self, seed=None, output_dir=None, output_prefix=None):
         """Reset the environment and return the initial state (or None if no states are used)."""
         if self._timestep != 0:
             self._timestep = 0
             self._mdp.End()
+            self._e += 1
+            # del self._mdp
+            # gc.collect()
+            self._mdp = stride.MDP()
+
+        # Measure memory usage from python
+        x = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        self._x.append(x)
+
         output_dir = output_dir if output_dir is not None else ""
         output_prefix = output_prefix if output_prefix is not None else ""
         seed = seed if seed is not None else self.seed
         self._mdp.Create(self.config_file, seed, output_dir, output_prefix)
         self._population_size = self._mdp.GetPopulationSize()
         return None
+
+    def close_x(self):
+        for i, x in enumerate(self._x):
+            print(f"Resources: {x} bytes ({round(x / 1024, 2)} kB, {round(x / 1024 ** 2, 2)} MB, {round(x / 1024 ** 3, 2)} GB)")
 
     def close(self):
         """Signal the simulator to end the simulation and its own processes."""
@@ -95,7 +113,7 @@ class StrideMDPEnv(Env):
             state, reward, done, info - feedback from the interaction with the environment.
         """
         # Each arm (action) is a collection of actions per age group
-        days = range(self._timestep, self._timestep + self.step_size)
+        days = range(self._timestep * self.step_size, (self._timestep * self.step_size) + self.step_size)
         combined_action = self.action_wrapper.get_combined_action(action, days)
         print(f"Chosen action {action}")
         state = infected = None
