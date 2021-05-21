@@ -79,9 +79,12 @@ class StrideMDPEnv(Env):
             self._timestep = 0
             self._mdp.End()
             self._e += 1
+
             # del self._mdp
             # gc.collect()
-            self._mdp = stride.MDP()
+            # self._mdp = stride.MDP()
+
+            self._mdp.ClearSimulation()
 
         # Measure memory usage from python
         x = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
@@ -97,6 +100,9 @@ class StrideMDPEnv(Env):
     def close_x(self):
         for i, x in enumerate(self._x):
             print(f"Resources: {x} bytes ({round(x / 1024, 2)} kB, {round(x / 1024 ** 2, 2)} MB, {round(x / 1024 ** 3, 2)} GB)")
+        # print("---")
+        # for i, x in enumerate(self._x):
+        #     print(x / 1024 ** 2)
 
     def close(self):
         """Signal the simulator to end the simulation and its own processes."""

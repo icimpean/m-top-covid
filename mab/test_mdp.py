@@ -3,6 +3,8 @@ import pylibstride as stride
 
 from envs.stride_env.stride_env import StrideMDPEnv
 from mab.bandits.bgm_bandit import BayesianGaussianMixtureBandit
+from mab.bandits.random_bandit import RandomBandit
+from mab.sampling.random import RandomSampling
 from mab.sampling.thompson_sampling import ThompsonSampling
 from resources.vaccine_supply import ConstantVaccineSupply
 
@@ -26,15 +28,16 @@ if __name__ == '__main__':
 
     # The type of environment
     env = StrideMDPEnv(states=False, seed=s, episode_duration=episode_duration, step_size=step_size,
-                       # config_file="../envs/stride_env/run_default_11M.xml",
-                       config_file="../envs/stride_env/run_default.xml",
+                       config_file="../envs/stride_env/run_default_11M.xml",
+                       # config_file="../envs/stride_env/run_default.xml",
                        available_vaccines=vaccine_supply,
                        reward_type='norm'
                        )
 
     # The sampling method
-    sampling_method = ThompsonSampling
+    # sampling_method = ThompsonSampling
     # sampling_method = BFTS.new(top_m=2)
+    sampling_method = RandomSampling
 
     # Gaussian posterior bandit
     # bandit = GaussianBandit(n_arms, env, sampling_method, seed=s)
@@ -43,6 +46,10 @@ if __name__ == '__main__':
                                            log_dir="../../Data/test_results",
                                            save_interval=10,
                                            )
+    # Random bandit
+    # bandit = RandomBandit(n_arms, env, sampling_method, seed=s, save_interval=10,
+    #                       log_dir="../../Data/test_results"
+    #                       )
 
     # Let the bandit run for the given number of episodes
     # bandit.play_bandit(episodes=3, initialise_arms=3)
