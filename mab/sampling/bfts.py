@@ -32,10 +32,15 @@ class BFTS(Sampling):
         order = np.argsort(-np.array(theta))
         # Choose an arm from the boundary (top_m boundary)
         arm_i = order[self.m - 1 + np.random.choice([0, 1])]
+
+        print(f"=== TOP_M arms at timestep {t}: {self.top_m(t)} ===")
+
         return arm_i
 
     def top_m(self, t):
         """Get the top m arms at timestep t"""
         # Get the means per arm
         means = self.posteriors.means_per_arm(t)
+        if isinstance(means, list):
+            means = np.array(means)
         return np.argsort(-means)[0:self.m]

@@ -35,22 +35,29 @@ class ActionWrapper(object):
         """
         return self._all_actions[arm]
 
-    def get_combined_action(self, arm, days):
+    def get_pretty_raw_action(self, arm):
+        """Get the action for printing"""
+        action = self._all_actions[arm]
+        new_action = [f"{g.name}: {a.name}" for a, g in zip(action, stride.AllAgeGroups)]
+        return new_action
+
+    def get_combined_action(self, arm, days, pop_size):
         """Get the combined action, consisting of one action per age group that needs vaccinating.
 
         Args:
             arm: (Int) The arm to translate into a combined action.
             days: (List[Int]) The days of the simulation to get the available vaccines for.
+            pop_size: The population size to get vaccines for.
 
         Returns:
             A list of (availableVaccines, ageGroup, vaccineType) tuples,
                 each representing a call to vaccinate.
         """
         vaccine_per_group = self.get_raw_action(arm)
-        return self._divide_vaccines_days(vaccine_per_group, days)
+        return self._divide_vaccines_days(vaccine_per_group, days, pop_size)
 
-    def _divide_vaccines_days(self, vaccine_per_group, days):
-        available_vaccines = self.available_vaccines.get_available_vaccines(days)
+    def _divide_vaccines_days(self, vaccine_per_group, days, pop_size):
+        available_vaccines = self.available_vaccines.get_available_vaccines(days, pop_size)
         actions = [self._divide_vaccines(vaccine_per_group, availability)
                    for availability in available_vaccines]
         return actions
@@ -108,3 +115,8 @@ class ActionWrapper(object):
         for i in range(m):
             new_counts[i] += 1
         return new_counts
+
+
+def print_arm(arm):
+    """Print the arm as the vaccine types per age group."""
+    return ActionWrapper().get_pretty_raw_action(arm)

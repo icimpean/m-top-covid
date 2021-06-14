@@ -1,7 +1,7 @@
 # noinspection PyUnresolvedReferences
 import pylibstride as stride
 
-import gc
+# import gc
 import numpy as np
 import random
 import resource
@@ -120,7 +120,7 @@ class StrideMDPEnv(Env):
         """
         # Each arm (action) is a collection of actions per age group
         days = range(self._timestep * self.step_size, (self._timestep * self.step_size) + self.step_size)
-        combined_action = self.action_wrapper.get_combined_action(action, days)
+        combined_action = self.action_wrapper.get_combined_action(action, days, self._population_size)
         print(f"Chosen action {action}")
         state = infected = None
         info = {}
@@ -130,7 +130,8 @@ class StrideMDPEnv(Env):
             infected = self._mdp.SimulateDay()
 
             print(f"infected: {self._mdp.CountInfectedCases()}, exposed: {self._mdp.CountExposedCases()}, "
-                  f"infectious: {self._mdp.CountInfectiousCases()}, symptomatic: {self._mdp.CountSymptomaticCases()}")
+                  f"infectious: {self._mdp.CountInfectiousCases()}, symptomatic: {self._mdp.CountSymptomaticCases()}, "
+                  f"hospitalised: {self._mdp.CountHospitalisedCases()}, total hosp.: {self._mdp.GetTotalHospitalised()}")
 
         # Transform the reward as requested
         reward = self._transform_reward(infected)

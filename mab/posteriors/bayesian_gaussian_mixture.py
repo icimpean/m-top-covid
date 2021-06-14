@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 from sklearn.mixture import BayesianGaussianMixture
 import pickle
@@ -29,8 +31,12 @@ class GaussianMixturePosterior(Posterior):
         X = np.array(self.rewards)
         # Data contains a single feature (reward)
         X = X.reshape(-1, 1)
-        # sklearn requires 2 samples minimum per fit
-        if len(X) > 1:
+        # sklearn requires at least as many samples as mixture components
+        if len(X) >= self._mixture.n_components:
+            self._mixture.fit(X)
+        else:
+            logging.warning(f"Only one reward gathered for BGM fitting: {X}. Using it duplicated.")
+            X = [X[0]] * self._mixture.n_components
             self._mixture.fit(X)
 
     def sample(self, t):

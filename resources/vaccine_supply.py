@@ -11,11 +11,12 @@ class VaccineSupply(object):
     # All vaccine types, except noVaccine
     _v_types = stride.AllVaccineTypes[1:]
 
-    def get_available_vaccines(self, days):
+    def get_available_vaccines(self, days, pop_size=None):
         """Get the available vaccines for the given days.
 
         Args:
             days: The list of days to get the available vaccines for.
+            pop_size: The population size to get vaccines for.
 
         Returns:
             available_vaccines, the available vaccines for those days, per vaccine type.
@@ -27,15 +28,18 @@ class ConstantVaccineSupply(VaccineSupply):
     """A constant vaccine supply per day
 
     Attributes:
-        vaccine_type_counts:
+        vaccine_type_counts: (Optional)
             If an integer => constant for all vaccine types.
             If a dictionary => The number of available vaccines, per type.
+        population_size: (Optional) The population size the counts are meant for.
+            Used to provide a vaccine count based on the current population.
     """
-    def __init__(self, vaccine_type_counts=None):
+    def __init__(self, vaccine_type_counts=None, population_size=11000000):
         self._vaccine_counts = {}
+        self.population_size = population_size
         # None, chosen constants
         if vaccine_type_counts is None:
-            self._vaccine_counts = {stride.VaccineType.mRNA: 20000, stride.VaccineType.adeno: 12000}
+            self._vaccine_counts = {stride.VaccineType.mRNA: 60000, stride.VaccineType.adeno: 40000}
         # A constant was given
         elif isinstance(vaccine_type_counts, int):
             self._vaccine_counts = {v_type: vaccine_type_counts for v_type in self._v_types}
@@ -47,9 +51,13 @@ class ConstantVaccineSupply(VaccineSupply):
             raise ValueError(f"Unsupported vaccine_type_counts: {vaccine_type_counts}."
                              f"\n\tExpecting one of None, int or a dictionary of (stride.VaccineType: int) pairs")
 
-    def get_available_vaccines(self, days):
+    def get_available_vaccines(self, days, pop_size=None):
         # Counts are meant to be read only, so providing a list with the same pointer should not be an issue
-        one_day = self._vaccine_counts
+        one_day = self._vaccine_counts.copy()
+        # If a population size is given, calculate the vaccine counts
+        if pop_size is not None:
+            for v_type in one_day:
+                one_day[v_type] = round(one_day[v_type] * pop_size / self.population_size)
         available_vaccines = [one_day] * len(days)
         return available_vaccines
 
@@ -62,6 +70,8 @@ class ObservedVaccineSupply(VaccineSupply):
      is known to divide the already supplied vaccines over the intermediate days.
 
     Attributes:
+        population_size: (Optional) The population size the counts are meant for.
+            Used to provide a vaccine count based on the current population.
         data_directory: (Optional) The data directory where the CSV files are stored to load in.
             If None, the data is retrieved via a get request.
     """
@@ -71,10 +81,12 @@ class ObservedVaccineSupply(VaccineSupply):
     doses_administered_per_vaccine_url = "https://covid-vaccinatie.be/api/v1/administered-by-vaccine-type.csv"
     doses_delivered_url = "https://covid-vaccinatie.be/api/v1/delivered.csv"
 
-    def __init__(self, use_administered, starting_date="",
+    def __init__(self, use_administered, starting_date="", population_size=11000000,
                  data_directory=None):
         self.use_administered = use_administered
         self.starting_date = starting_date
+        self.population_size = population_size
+        #
         self._last_update = None
         self._vaccine_counts = []
         if use_administered:
@@ -90,10 +102,17 @@ class ObservedVaccineSupply(VaccineSupply):
         if last_updated != self._last_update:
             self._last_update = last_updated
 
-    def get_available_vaccines(self, days):
+    def get_available_vaccines(self, days, pop_size=None):
         # Avoid indexing errors for missing days: use the last day as counts
         get_index = lambda d: d if d < len(self._vaccine_counts) else -1
-        available_vaccines = [self._vaccine_counts[get_index(day)] for day in days]
+        # If a population size is given, calculate the vaccine counts
+        if pop_size is None:
+            available_vaccines = [self._vaccine_counts[get_index(day)] for day in days]
+        else:
+            available_vaccines = [self._vaccine_counts[get_index(day)].copy() for day in days]
+            for one_day in available_vaccines:
+                for v_type in one_day:
+                    one_day[v_type] = round(one_day[v_type] * pop_size / self.population_size)
         return available_vaccines
 
     def load_administered(self, starting_date="2021-01-05"):

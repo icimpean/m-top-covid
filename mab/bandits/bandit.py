@@ -1,3 +1,4 @@
+import logging
 import os
 import time
 from pathlib import Path
@@ -26,7 +27,7 @@ class Bandit(object):
         self.save_interval = save_interval
         self.logger = BanditLogger()
         self._log_dir = Path(log_dir)
-        self._log_file = self._log_dir / "bandit_log.csv"
+        self.log_file = self._log_dir / "bandit_log.csv"
         os.makedirs(self._log_dir, exist_ok=True)
 
     def best_arm(self, t):
@@ -34,7 +35,7 @@ class Bandit(object):
         arm = self.posteriors.sample_best_arm(t)
         return arm
 
-    def play_bandit(self, episodes, initialise_arms=0):
+    def play_bandit(self, episodes, initialise_arms=0, stop_condition=lambda _: False):
         """Run the bandit for the given number of steps.
 
         Args:
@@ -45,18 +46,24 @@ class Bandit(object):
         Returns:
             None.
         """
-        self.logger.create_file(self._log_file)
+        self.logger.create_file(self.log_file)
 
         t = 0
         # Play each arm initialise_arms times
-        for arm in range(self.nr_arms):
-            for _ in range(initialise_arms):
+        for _ in range(initialise_arms):
+            for arm in range(self.nr_arms):
                 self._play(t, lambda _: arm)
                 t += 1
         start_t = self.nr_arms * initialise_arms
 
         for t in range(start_t, episodes):
             self._play(t, self.sampling.sample_arm)
+
+            # Early stop-condition
+            if stop_condition(t):
+                logging.info(f"Stopped bandit early due to stopping condition at timestep {t}")
+                print(f"Stopped bandit early due to stopping condition at timestep {t}")
+                break
 
     def _play(self, t, select_arm):
         """Play an arm selected by the given select_arm function"""
@@ -81,7 +88,7 @@ class Bandit(object):
 
         # Log the data
         entry = self.logger.create_entry(t, arm, reward, time_end - time_start)
-        self.logger.write_data(entry, self._log_file)
+        self.logger.write_data(entry, self.log_file)
         # Save the bandit if necessary
         if t % self.save_interval == 0:
             self.save(t)
@@ -92,19 +99,34 @@ class Bandit(object):
 
     def test_bandit(self):
         """A small testing case for stride bandit, playing one arm for 0 to 5 age groups vaccinated"""
-        self.logger.create_file(self._log_file)
+        self.logger.create_file(self.log_file)
         t = 0
-        some_arms = [0, 1, 11, 23, 123, 230]
+        some_arms = [0, 1, 11, 23, 123, 230] * 2
         for arm in some_arms:
             self._play(t, lambda _: arm)
             t += 1
 
         # TODO: remove
-        # self.env.close_x()
-        # import resource
-        # x = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        # print(f"End Resources: {x} bytes ({round(x / 1024, 2)} kB, {round(x / 1024 ** 2, 2)} MB, {round(x / 1024 ** 3, 2)} GB)")
+        self.env.close_x()
+        import resource
+        x = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        print(f"End Resources: {x} bytes ({round(x / 1024, 2)} kB, {round(x / 1024 ** 2, 2)} MB, {round(x / 1024 ** 3, 2)} GB)")
 
+        #
+        self.env.close()
+
+    def play_arms(self, arms):
+        self.logger.create_file(self.log_file)
+
+        for t, arm in enumerate(arms):
+            self._play(t, lambda _: arm)
+
+        # TODO: remove
+        self.env.close_x()
+        import resource
+        x = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        print(
+            f"End Resources: {x} bytes ({round(x / 1024, 2)} kB, {round(x / 1024 ** 2, 2)} MB, {round(x / 1024 ** 3, 2)} GB)")
         #
         self.env.close()
 
