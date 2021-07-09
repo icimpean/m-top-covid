@@ -2,6 +2,7 @@
 import pylibstride as stride
 
 # import gc
+from enum import Enum, auto
 import numpy as np
 import random
 import resource
@@ -9,6 +10,33 @@ import resource
 from envs.env import Env
 from envs.stride_env.action_wrapper import ActionWrapper
 from resources.vaccine_supply import VaccineSupply, ConstantVaccineSupply
+
+
+class Reward(Enum):
+    """The enumeration for the type of reward to use"""
+    # Counts
+    infected = auto()
+    exposed = auto()
+    infectious = auto()
+    symptomatic = auto()
+    hospitalised = auto()
+
+    # Cumulative counts
+    total_infected = auto()
+    total_hospitalised = auto()
+
+
+# The mapping of reward types and the corresponding method call
+_reward_mapping = {
+    Reward.infected: lambda mdp: mdp.CountInfectedCases(),
+    Reward.exposed: lambda mdp: mdp.CountExposedCases(),
+    Reward.infectious: lambda mdp: mdp.CountInfectiousCases(),
+    Reward.symptomatic: lambda mdp: mdp.CountSymptomaticCases(),
+    Reward.hospitalised: lambda mdp: mdp.CountHospitalisedCases(),
+    #
+    Reward.total_infected: lambda mdp: mdp.GetTotalInfected(),
+    Reward.total_hospitalised: lambda mdp: mdp.GetTotalHospitalised(),
+}
 
 
 class StrideMDPEnv(Env):
@@ -37,7 +65,9 @@ class StrideMDPEnv(Env):
     """
     def __init__(self, states=False, seed=0, episode_duration=6 * 30, step_size=2 * 30,
                  config_file="./run_default.xml", available_vaccines: VaccineSupply = ConstantVaccineSupply(),
-                 reward_type=None):
+                 reward=Reward.total_infected, reward_type=None,
+                 mRNA_properties: stride.VaccineProperties = stride.LinearVaccineProperties("mRNA vaccine", 0.95, 0.95, 1.00, 42),
+                 adeno_properties: stride.VaccineProperties = stride.LinearVaccineProperties("Adeno vaccine", 0.67, 0.67, 1.00, 42)):
         # Super call
         super(StrideMDPEnv, self).__init__(seed)
         # Set the seed
@@ -57,11 +87,15 @@ class StrideMDPEnv(Env):
         # The number of timesteps per episode where the agent can select an action
         self.steps_per_episode = self.episode_duration // self.step_size
 
+        # Vaccine properties
+        self.mRNA_properties = mRNA_properties
+        self.adeno_properties = adeno_properties
         # Action space for an action
         self._action_space = len(stride.AllVaccineTypes) ** len(stride.AllAgeGroups)
         self.action_wrapper = ActionWrapper(available_vaccines)
 
         # Reward
+        self.reward = reward
         self.reward_type = reward_type
         self._population_size = 0
 
@@ -93,7 +127,8 @@ class StrideMDPEnv(Env):
         output_dir = output_dir if output_dir is not None else ""
         output_prefix = output_prefix if output_prefix is not None else ""
         seed = seed if seed is not None else self.seed
-        self._mdp.Create(self.config_file, seed, output_dir, output_prefix)
+        self._mdp.Create(self.config_file, self.mRNA_properties, self.adeno_properties,
+                         seed, output_dir, output_prefix)
         self._population_size = self._mdp.GetPopulationSize()
         return None
 
@@ -120,21 +155,25 @@ class StrideMDPEnv(Env):
         """
         # Each arm (action) is a collection of actions per age group
         days = range(self._timestep * self.step_size, (self._timestep * self.step_size) + self.step_size)
-        combined_action = self.action_wrapper.get_combined_action(action, days, self._population_size)
+        combined_action = self.action_wrapper.get_combined_action(action, days, self._population_size,
+                                                                  self._mdp.GetAgeGroupSizes())
         print(f"Chosen action {action}")
-        state = infected = None
+        # print(f"Population size: {self._population_size}")
+        # print(f"Age groups {self._mdp.GetAgeGroupSizes()}")
+        state = reward = None
         info = {}
         # Execute the action to vaccinate and simulate for as many days as required
         for t in range(self.step_size):
             self._vaccinate(combined_action[t])
-            infected = self._mdp.SimulateDay()
+            self._mdp.SimulateDay()
+            reward = self.get_reward()
 
             print(f"infected: {self._mdp.CountInfectedCases()}, exposed: {self._mdp.CountExposedCases()}, "
                   f"infectious: {self._mdp.CountInfectiousCases()}, symptomatic: {self._mdp.CountSymptomaticCases()}, "
                   f"hospitalised: {self._mdp.CountHospitalisedCases()}, total hosp.: {self._mdp.GetTotalHospitalised()}")
 
         # Transform the reward as requested
-        reward = self._transform_reward(infected)
+        reward = self._transform_reward(reward)
         # Another timestep has passed
         self._timestep += 1
         # The episode is done once we reach the episode duration
@@ -167,8 +206,12 @@ class StrideMDPEnv(Env):
 
     def _transform_reward(self, infected):
         if self.reward_type == "neg":
-            return -infected
+            return self._population_size - infected
         elif self.reward_type == "norm":
             return (self._population_size - infected) / self._population_size
         else:
             return infected
+
+    def get_reward(self):
+        """Get the reward from the MDP"""
+        return _reward_mapping[self.reward](self._mdp)

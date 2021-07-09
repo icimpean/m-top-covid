@@ -3,6 +3,7 @@ import os
 import time
 from pathlib import Path
 
+from envs.stride_env.stride_env import StrideMDPEnv
 from loggers.bandit_logger import BanditLogger
 from mab.sampling import Sampling
 
@@ -70,7 +71,9 @@ class Bandit(object):
         time_start = time.time()
         # Reset the simulation
         output_prefix = self._log_dir / f"{t}"
-        os.makedirs(output_prefix, exist_ok=True)
+        # Create output directories for environments that require it
+        if isinstance(self.env, StrideMDPEnv):
+            os.makedirs(output_prefix, exist_ok=True)
         state = self.env.reset(seed=t, output_dir=str(self._log_dir), output_prefix=str(output_prefix))
 
         # Compute the posteriors of the bandit
@@ -107,10 +110,10 @@ class Bandit(object):
             t += 1
 
         # TODO: remove
-        self.env.close_x()
-        import resource
-        x = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        print(f"End Resources: {x} bytes ({round(x / 1024, 2)} kB, {round(x / 1024 ** 2, 2)} MB, {round(x / 1024 ** 3, 2)} GB)")
+        # self.env.close_x()
+        # import resource
+        # x = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        # print(f"End Resources: {x} bytes ({round(x / 1024, 2)} kB, {round(x / 1024 ** 2, 2)} MB, {round(x / 1024 ** 3, 2)} GB)")
 
         #
         self.env.close()
@@ -122,11 +125,11 @@ class Bandit(object):
             self._play(t, lambda _: arm)
 
         # TODO: remove
-        self.env.close_x()
-        import resource
-        x = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        print(
-            f"End Resources: {x} bytes ({round(x / 1024, 2)} kB, {round(x / 1024 ** 2, 2)} MB, {round(x / 1024 ** 3, 2)} GB)")
+        # self.env.close_x()
+        # import resource
+        # x = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        # print(
+        #     f"End Resources: {x} bytes ({round(x / 1024, 2)} kB, {round(x / 1024 ** 2, 2)} MB, {round(x / 1024 ** 3, 2)} GB)")
         #
         self.env.close()
 

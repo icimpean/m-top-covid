@@ -1,4 +1,5 @@
 import logging
+import random
 
 import numpy as np
 from sklearn.mixture import BayesianGaussianMixture
@@ -40,6 +41,42 @@ class GaussianMixturePosterior(Posterior):
             self._mixture.fit(X)
 
     def sample(self, t):
+        """Sample the means"""
+
+        samples = []
+        weights = []
+        sample = 0
+        # Sample each mixture
+        for m in range(self._mixture.n_components):
+            # Sample the mixture's mean
+            mu = self._mixture.means_[m][0]
+            # The precision of each components on the mean distribution (Gaussian).
+            mu_precision = self._mixture.mean_precision_[m]
+            mu_variance = 1 / mu_precision
+            mu_std_dev = mu_variance ** (1/2)
+            # Sample the mean distribution
+            m_sample = self.rng.normal(loc=mu, scale=mu_std_dev)
+            # Adapt the mean according to its weight
+            w = self._mixture.weights_[m]
+            # Sample the weight distribution?
+            # w_concentration = self._mixture.weight_concentration_[m]
+            # w_sample = self.rng.dirichlet()
+
+            weights.append(w)
+            samples.append(m_sample)
+
+            # print(mu, mu_precision, mu_std_dev, m_sample, w, w_concentration)
+
+        # Choose a mean according to the weights
+        sample = random.choices(samples, weights, k=1)[0]
+
+        # sample = self.sample_old(t)
+        # print("sample:", sample)
+
+        return sample
+
+    def sample_old(self, t):
+        """Sample the reward distribution"""
         X, y = self._mixture.sample()
         X = X[0][0]
         return X
@@ -51,6 +88,9 @@ class GaussianMixturePosterior(Posterior):
     def load(self, path):
         with open(path, 'rb') as file:
             self._mixture = pickle.load(file)
+
+    def get_mixture(self):
+        return self._mixture
 
 
 class BGMPosteriors(SinglePosteriors):

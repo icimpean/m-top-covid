@@ -1,13 +1,17 @@
 # noinspection PyUnresolvedReferences
 import pylibstride as stride
 
-from envs.stride_env.stride_env import StrideMDPEnv
+import os
+
+from envs.stride_env.calendar import create_calendar
+from envs.stride_env.stride_env import StrideMDPEnv, Reward
 from mab.bandits.bgm_bandit import BayesianGaussianMixtureBandit
 from mab.bandits.random_bandit import RandomBandit
 from mab.sampling.bfts import BFTS
 from mab.sampling.random import RandomSampling
 from mab.sampling.thompson_sampling import ThompsonSampling
 from mab.visualisation.bandit import BanditVisualisation
+from mab.visualisation.posteriors import PosteriorVisualisation
 from resources.vaccine_supply import ConstantVaccineSupply
 
 
@@ -20,8 +24,11 @@ if __name__ == '__main__':
     n_arms = 3 ** 5
     top_m = 50
     k = 2
-    log_dir = "../../Data/run2/600k_test"
-    config_file = "../envs/stride_env/config0_600k.xml"
+
+    # TEST
+    log_dir = "../../Data/test_run/600k/"
+    config_file = "../envs/stride_env/config1_600k.xml"
+    create_calendar(config_file, "../envs/stride_env/600k_calendar.csv")
 
     episode_duration = 2 * 30
     # Bandit decides policy once at the start
@@ -41,7 +48,11 @@ if __name__ == '__main__':
 
     # The type of environment
     env = StrideMDPEnv(states=False, seed=s, episode_duration=episode_duration, step_size=step_size,
-                       config_file=config_file, available_vaccines=vaccine_supply, reward_type='norm')
+                       config_file=config_file, available_vaccines=vaccine_supply,
+                       reward=Reward.total_infected, reward_type='norm',
+                       mRNA_properties=stride.LinearVaccineProperties("mRNA vaccine", 0.95, 0.95, 1.00, 42),
+                       adeno_properties=stride.LinearVaccineProperties("Adeno vaccine", 0.67, 0.67, 1.00, 42),
+                       )
 
     # The sampling method
     # sampling_method = ThompsonSampling
@@ -50,12 +61,10 @@ if __name__ == '__main__':
 
     # Gaussian posterior bandit
     # bandit = GaussianBandit(n_arms, env, sampling_method, seed=s)
-    # Sklearn-based implementation (Nonparametric Gaussian Mixture posterior bandit)
+    # Sklearn-based implementation (Nonparametric Gaussian Mixture posterior bandit)  TODO
     bandit = BayesianGaussianMixtureBandit(n_arms, env, sampling_method, k=2, seed=s, log_dir=log_dir, save_interval=10)
     # Random bandit
-    # bandit = RandomBandit(n_arms, env, sampling_method, seed=s, save_interval=10,
-    #                       log_dir="../../Data/test_results"
-    #                       )
+    # bandit = RandomBandit(n_arms, env, sampling_method, seed=s, save_interval=100, log_dir=log_dir)
 
     # Stop if top-m doesn't change in more than t_max episodes
     top = None
@@ -91,8 +100,10 @@ if __name__ == '__main__':
     v.load_file(path)
     v.plot_top(top_m=top_m)
 
-    # Plot some random arms
-    arms = [228, 156, 26]
-    for a in arms:
-        v.plot_single_arm(arm=a, stride_csv_directory=stride_dir, file_name=v.stride_vis.exposed, plot_average=True,
-                          show=True, save_file=None)
+    p_dir = f"{log_dir}/_vis/"
+    os.makedirs(p_dir, exist_ok=True)
+    for arm in range(n_arms):
+        v.plot_single_arm(arm=arm, stride_csv_directory=stride_dir, file_name=None, plot_average=True,
+                          plot_cumulative=False, show=True, save_file=f"{p_dir}/arm_{arm}.png")
+        v.plot_single_arm(arm=arm, stride_csv_directory=stride_dir, file_name=None, plot_average=True,
+                          plot_cumulative=True, show=True, save_file=f"{p_dir}/arm_{arm}_cumul.png")

@@ -60,10 +60,10 @@ class BanditVisualisation(Visualisation):
             min_reward = np.inf
             max_reward = -np.inf
             for arm, arm_rewards in rewards.items():
-                rewards[arm] = np.mean(arm_rewards)
+                rewards[arm] = arm_rewards
                 if requested_arms is None or arm in requested_arms:
-                    min_reward = min(min_reward, rewards[arm])
-                    max_reward = max(max_reward, rewards[arm])
+                    min_reward = min(min_reward, *rewards[arm])
+                    max_reward = max(max_reward, *rewards[arm])
 
         # Set the data
         self.arms = arms
@@ -93,7 +93,7 @@ class BanditVisualisation(Visualisation):
             top_m = len(self.arms)
 
         # Get the top best/worst
-        sorted_rewards = sorted(rewards.items(), key=lambda ar: ar[1], reverse=best)
+        sorted_rewards = sorted(rewards.items(), key=lambda ar: np.mean(ar[1]), reverse=best)
         sorted_rewards = sorted_rewards[:top_m]
         min_reward = sorted_rewards[-1 if best else 0][1]
         max_reward = sorted_rewards[0 if best else -1][1]
@@ -155,18 +155,27 @@ class BanditVisualisation(Visualisation):
         # Show, save and close the plot
         self._show_save_close(show, save_file)
 
-    def plot_single_arm(self, arm, stride_csv_directory, file_name=None, plot_average=False, show=True, save_file=None):
+    def plot_single_arm(self, arm, stride_csv_directory, file_name=None, plot_average=False, plot_cumulative=False,
+                        show=True, save_file=None):
 
         # Plot the requested arm
-        file_names = [file_name] if file_name is not None else [self.stride_vis.files_names.keys()]
-        names = [self.stride_vis.files_names[fn] for fn in file_names]
-        name = self.stride_vis.files_names[file_name] if file_name is not None else "Individuals"
+        names = self.stride_vis.files_names
+        if file_name is not None:
+            file_names = [file_name]
+        elif plot_cumulative:
+            file_names = list(self.stride_vis.cumulative_file_names.keys())
+            names = self.stride_vis.cumulative_file_names
+        else:
+            file_names = list(self.stride_vis.files_names.keys())
+
+        names = [names[fn] for fn in file_names]
+        name = names[file_name] if file_name is not None else "Individuals"
         # Set up the plot
         self._plot_text(title=f"Number of {name} for arm {arm}", x_label="Days", y_label=name, legend=None)
 
         lw = 0.5 if plot_average else 1.0
         alpha = 0.4 if plot_average else 1.0
-        colors = ["blue", "red", "green", "black", "orange", "purple"]
+        colors = ["blue", "red", "green", "black", "orange", "purple", "pink", "yellow", "grey"]
 
         for idx, n in enumerate(names):
             # Average for arm
@@ -174,16 +183,21 @@ class BanditVisualisation(Visualisation):
             # For each episode
             for episode in self.episodes_per_arm[arm]:
                 stride_csv_file = Path(stride_csv_directory) / str(episode) / file_names[idx]
-                y_values, min_reward, max_reward = self.stride_vis.load_file(stride_csv_file)
-                average.append(y_values)
-                plt.plot(range(len(y_values)), y_values, lw=lw, color=colors[idx], alpha=alpha)
+                try:
+                    y_values, min_reward, max_reward = self.stride_vis.load_file(stride_csv_file)
+                    average.append(y_values)
+                    plt.plot(range(len(y_values)), y_values, lw=lw, color=colors[idx], alpha=alpha,
+                             label=None if plot_average else n)
+                except FileNotFoundError:
+                    continue
             # Plot the average
             if plot_average:
                 average = np.mean(average, axis=0)
+                print(f"Average max {n}: {np.max(average)}")
                 plt.plot(range(len(average)), average, lw=lw * 3, color=colors[idx], label=n)
-
-            # Show, save and close the plot
-            self._show_save_close(show, save_file)
+        plt.legend()
+        # Show, save and close the plot
+        self._show_save_close(show, save_file)
 
     def plot_arm_frequency(self, requested_arms=None, best=True, show=True, save_file=None):
         # Get the data
@@ -220,3 +234,38 @@ class BanditVisualisation(Visualisation):
         max_top = sorted_top[0 if best else -1][1]
 
         return sorted_top, min_top, max_top
+
+    def plot_violin(self, requested_arms=None, sorted_arms=False, best=True, show=True, save_file=None):
+        """Create a violin plot for the requested arms."""
+        arms = self.arms if requested_arms is None else requested_arms
+        rewards, min_reward, max_reward = self.rewards_per_arm
+        # Sort if requested
+        if sorted_arms:
+            # Get the top best/worst
+            rewards = sorted(rewards.items(), key=lambda ar: np.mean(ar[1]), reverse=best)
+            min_reward = rewards[-1 if best else 0][1]
+            max_reward = rewards[0 if best else -1][1]
+            arms = [a for a, r in rewards]
+        x_ticks = (range(len(arms)), arms)
+
+        # Set up the plot
+        self._plot_text(title=f"Density of outcome distributions",
+                        x_label="Arm", y_label="reward", legend=None, x_ticks=x_ticks)
+        # Center the graph around the y_values to plot
+        plt.ylim(self._center_y_lim(min_reward, max_reward))
+
+        rewards = [rewards[arm] for arm in arms]
+        plt.violinplot(rewards, x_ticks[0],
+                       points=200, vert=True, widths=1.0,
+                       # showmeans=True, showextrema=True, showmedians=True,  # TODO: separate
+                       showmeans=True, showextrema=True, showmedians=False,  # TODO: separate
+                       bw_method=0.5
+                       )
+
+        # for idx, arm in enumerate(arms):
+        #     # print(rewards)
+        #     # print(rewards[arm], [idx])
+        #     plt.violinplot(rewards[arm], [idx])
+
+        # Show, save and close the plot
+        self._show_save_close(show, save_file)

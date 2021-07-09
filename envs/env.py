@@ -131,8 +131,16 @@ class GaussianMixtureEnv(Env):
             self.means = self.rng.random(size=(self.nr_actions, self.k))
             self.std_dev = self.rng.random(size=(self.nr_actions, self.k))
         else:
-            self.means = self.rng.uniform(0, 20, size=(self.nr_actions, self.k)) * 0.5
-            self.std_dev = self.rng.random(size=(self.nr_actions, self.k)) * 3 + 0.5
+            # self.means = self.rng.uniform(0, 20, size=(self.nr_actions, self.k)) * 0.5
+            # self.std_dev = self.rng.random(size=(self.nr_actions, self.k)) * 3 + 0.5
+
+            # Create a stride population sized distribution
+            # TODO: remove
+            pop_size = 600000
+            pop_min = pop_size * 0.8
+            pop_max = pop_size
+            self.means = self.rng.random(size=(self.nr_actions, self.k)) * (pop_max - pop_min) + pop_min
+            self.std_dev = self.rng.random(size=(self.nr_actions, self.k)) * 300 + 25
 
     def _sample_reward(self, action):
         # Choose a mixture for the given action, given their probabilities
@@ -163,7 +171,7 @@ class GaussianMixtureEnv(Env):
                 print(f"\t[mixture {k}] pi: {pi}, mean: {mean}, std. dev. {std_dev}")
         print(stripes)
 
-    def plot_rewards(self, show=False):
+    def plot_rewards(self, show=False, save_file=None):
         plt.title(f"Rewards for a Gaussian Mixture Environment with {self.nr_actions} actions")
         for arm in range(self.nr_actions):
             min_x = np.inf
@@ -179,8 +187,15 @@ class GaussianMixtureEnv(Env):
                 y = stats.norm.pdf(new_x, mean, std_dev**2)
                 new_y += y * pi
             plt.plot(new_x, new_y, label=str(arm))
+            # Center the graph around the rewards to plot
+            # x_lim = (max_x + min_x) / 2 * 1
+            # plt.xlim(min_x - x_lim, max_x - x_lim)
+
         plt.legend()
-        plt.savefig("gaussian mixture rewards environment.png")
+        if not self.normalised:
+            plt.locator_params(axis="both", integer=True, tight=True)
+        if save_file is not None:
+            plt.savefig(save_file)
         if show:
             plt.show()
         plt.close()

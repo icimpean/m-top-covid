@@ -29,11 +29,15 @@ class BFTS(Sampling):
         """Sample an arm based on the sampling method."""
         # Sample all arms and order them
         theta = self.posteriors.sample_all(t)
+
+        # TODO: remove
+        print(f"Arm samples: {theta}")
+
         order = np.argsort(-np.array(theta))
         # Choose an arm from the boundary (top_m boundary)
         arm_i = order[self.m - 1 + np.random.choice([0, 1])]
 
-        print(f"=== TOP_M arms at timestep {t}: {self.top_m(t)} ===")
+        # print(f"=== TOP_M arms at timestep {t}: {self.top_m(t)} ===")
 
         return arm_i
 

@@ -138,6 +138,19 @@ class SinglePosteriors(Posteriors):
             p_path = path.with_name(f"{path.name}arm_{i}.posterior")
             self.posteriors[i].load(p_path)
 
+    def print_posteriors(self):
+        from mab.posteriors.bayesian_gaussian_mixture import GaussianMixturePosterior
+        if isinstance(self.posteriors[0], GaussianMixturePosterior):
+            stripes = "----------------------------"
+            print(f"--- Bayesian Gaussian Mixture Posteriors ---")
+            for arm in range(self.nr_arms):
+                print(f"Action {arm}:")
+                posterior = self.posteriors[arm].get_mixture()
+                for k in range(posterior.n_components):
+                    print(f"\t[mixture {k}] pi: {posterior.weights_[k]}, mean: {posterior.means_[k][0]}, "
+                          f"cov. {posterior.covariances_[k][0]}")
+            print(stripes)
+
 
 class GroupPosterior(Posteriors):
     """The posteriors of a bandit's arms, containing all posteriors."""

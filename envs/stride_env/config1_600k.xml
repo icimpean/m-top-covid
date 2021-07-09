@@ -1,0 +1,69 @@
+<!-- This file is part of the Stride software [2021-05-19 10:29:59]-->
+<run>
+
+  <r0>3.37</r0>
+  <num_days>196</num_days>
+  <num_seeds>10</num_seeds>
+  <num_participants_survey>30</num_participants_survey>
+  <num_infected_seeds>255</num_infected_seeds>
+  <disease_config_file>../../stride_omp_python/data/disease_covid19_lognorm_child.xml</disease_config_file>
+
+  <population_file>../../stride_omp_python/data/pop_belgium600k_c500_teachers_censushh.csv</population_file>
+
+  <age_contact_matrix_file>../../stride_omp_python/data/contact_matrix_flanders_conditional_teachers.xml</age_contact_matrix_file>
+  <start_date>2021-01-01</start_date>
+
+  <cnt_reduction_workplace>0.76</cnt_reduction_workplace>
+  <cnt_reduction_other>0.86</cnt_reduction_other>
+<!--  <compliance_delay_workplace>6</compliance_delay_workplace>-->
+<!--  <compliance_delay_other>7</compliance_delay_other>-->
+<!--  <compliance_delay_collectivity>1</compliance_delay_collectivity>-->
+  <num_daily_imported_cases>0</num_daily_imported_cases>
+  <cnt_reduction_workplace_exit>0.5</cnt_reduction_workplace_exit>
+  <cnt_reduction_other_exit>0.7</cnt_reduction_other_exit>
+  <cnt_reduction_school_exit>0.5</cnt_reduction_school_exit>
+  <cnt_reduction_collectivity>0</cnt_reduction_collectivity>
+  <cnt_baseline_collectivity>0</cnt_baseline_collectivity>
+  <cnt_intensity_householdCluster>0</cnt_intensity_householdCluster>
+
+  <detection_probability>0.7</detection_probability>
+  <tracing_efficiency_household>0.9</tracing_efficiency_household>
+  <tracing_efficiency_other>0.5</tracing_efficiency_other>
+  <case_finding_capacity>10000</case_finding_capacity>
+  <delay_isolation_index>1</delay_isolation_index>
+  <delay_contact_tracing>2</delay_contact_tracing>
+  <test_false_negative>0.1</test_false_negative>
+
+  <event_log_level>Transmissions</event_log_level>
+  <event_output_file>false</event_output_file>
+
+  <hosp_probability_factor>0.35</hosp_probability_factor>
+  <hospital_category_age>0,10,20,30,40,50,60,70,80</hospital_category_age>
+  <hospital_probability_age>0.221,0.018,0.041,0.033,0.056,0.071,0.139,0.367,1</hospital_probability_age>
+  <hospital_mean_delay_age>3,3,7,7,7,7,6,6,1</hospital_mean_delay_age>
+
+  <output_cases>true</output_cases>
+  <output_persons>false</output_persons>
+  <output_prefix>test</output_prefix>
+  <output_summary>true</output_summary>
+  <rng_seed>2021</rng_seed>
+
+  <immunity_link_probability>0</immunity_link_probability>
+  <immunity_profile>AgeDependent</immunity_profile>
+  <immunity_distribution_file>../../FullPop/immunity_covid_belgium.xml</immunity_distribution_file>
+<!--  <immunity_rate>0.8</immunity_rate>  -->
+<!--  <immunity_profile>None</immunity_profile>-->
+
+  <stride_log_level>info</stride_log_level>
+  <track_index_case>false</track_index_case>
+
+  <holidays_file>../envs/stride_env/600k_calendar.csv</holidays_file>
+<!--  <holidays_file>../../stride_omp_python/data/holidays_none.csv</holidays_file>-->
+
+  <use_install_dirs>true</use_install_dirs>
+  <vaccine_profile>Random</vaccine_profile>
+  <vaccine_rate>0.8</vaccine_rate>
+  <output_prefix>test</output_prefix>
+
+  <num_threads>1</num_threads>
+</run>
