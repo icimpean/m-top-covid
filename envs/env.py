@@ -135,12 +135,47 @@ class GaussianMixtureEnv(Env):
             # self.std_dev = self.rng.random(size=(self.nr_actions, self.k)) * 3 + 0.5
 
             # Create a stride population sized distribution
-            # TODO: remove
-            pop_size = 600000
-            pop_min = pop_size * 0.8
-            pop_max = pop_size
-            self.means = self.rng.random(size=(self.nr_actions, self.k)) * (pop_max - pop_min) + pop_min
-            self.std_dev = self.rng.random(size=(self.nr_actions, self.k)) * 300 + 25
+            # # TODO: remove
+            # pop_size = 600000
+            # pop_min = pop_size * 0.8
+            # pop_max = pop_size
+            # self.means = self.rng.random(size=(self.nr_actions, self.k)) * (pop_max - pop_min) + pop_min
+            # self.std_dev = self.rng.random(size=(self.nr_actions, self.k)) * 300 + 25
+
+            # Fixed environment
+            self.k = 2
+            self.pi = np.array([
+                [1, 1],
+                [1, 3],
+                [4, 15],
+                [12, 18],
+                [2, 3],
+                [17, 19],
+                [2, 6],
+                [3, 1],
+            ], dtype=np.float)
+            self.pi /= self.pi.sum(axis=1, keepdims=True)
+
+            self.means = np.array([
+                [10, 20],
+                [10, 11],
+                [14, 15],
+                [15, 18],
+                [13, 9],
+                [17, 19],
+                [18, 12],
+                [15, 11],
+            ])
+            self.std_dev = np.array([
+                [1, 2],
+                [1.3, 2.2],
+                [1.03, 1.6],
+                [0.6, 0.82],
+                [1.1, 0.93],
+                [1.7, 1.4],
+                [1.01, 1.31],
+                [1.41, 1.5],
+            ]) * 0.5
 
     def _sample_reward(self, action):
         # Choose a mixture for the given action, given their probabilities

@@ -24,46 +24,51 @@ class BanditVisualisation(Visualisation):
         self.stride_vis = StrideVisualisation()
 
     def load_file(self, bandit_file, requested_arms=None, sort=True):
-        with open(bandit_file, "r") as file:
-            rewards = {}
-            episodes = {}
-            arms = set()
-            logger = BanditLogger()
+        self.load_files([bandit_file], requested_arms, sort)
 
-            entry_fields = logger.entry_fields
-            reader = csv.DictReader(file, fieldnames=entry_fields)
-            skip = True
-            for entry in reader:
-                if skip:
-                    skip = False
-                    continue
+    def load_files(self, bandit_files, requested_arms=None, sort=True):
+        """Combine multiple bandit file results"""
+        rewards = {}
+        episodes = {}
+        arms = set()
+        logger = BanditLogger()
+        entry_fields = logger.entry_fields
 
-                # Get the arm, episode and given reward
-                arm = int(entry[logger.arm])
-                reward = float(entry[logger.reward])
-                episode = int(entry[logger.episode])
+        for bandit_file in bandit_files:
+            with open(bandit_file, "r") as file:
+                reader = csv.DictReader(file, fieldnames=entry_fields)
+                skip = True
+                for entry in reader:
+                    if skip:
+                        skip = False
+                        continue
 
-                arms.add(arm)
-                if rewards.get(arm) is None:
-                    rewards[arm] = [reward]
-                else:
-                    rewards[arm].append(reward)
-                if episodes.get(arm) is None:
-                    episodes[arm] = [episode]
-                else:
-                    episodes[arm].append(episode)
+                    # Get the arm, episode and given reward
+                    arm = int(entry[logger.arm])
+                    reward = float(entry[logger.reward])
+                    episode = int(entry[logger.episode])
 
-            if sort:
-                arms = sorted(arms)
+                    arms.add(arm)
+                    if rewards.get(arm) is None:
+                        rewards[arm] = [reward]
+                    else:
+                        rewards[arm].append(reward)
+                    if episodes.get(arm) is None:
+                        episodes[arm] = [episode]
+                    else:
+                        episodes[arm].append(episode)
 
-            # Calculate the averages per arm
-            min_reward = np.inf
-            max_reward = -np.inf
-            for arm, arm_rewards in rewards.items():
-                rewards[arm] = arm_rewards
-                if requested_arms is None or arm in requested_arms:
-                    min_reward = min(min_reward, *rewards[arm])
-                    max_reward = max(max_reward, *rewards[arm])
+        if sort:
+            arms = sorted(arms)
+
+        # Calculate the averages per arm
+        min_reward = np.inf
+        max_reward = -np.inf
+        for arm, arm_rewards in rewards.items():
+            rewards[arm] = arm_rewards
+            if requested_arms is None or arm in requested_arms:
+                min_reward = min(min_reward, *rewards[arm])
+                max_reward = max(max_reward, *rewards[arm])
 
         # Set the data
         self.arms = arms
@@ -84,7 +89,7 @@ class BanditVisualisation(Visualisation):
         # Plot the data
         self._bar_plot(plot_arms, get_y=lambda x: rewards[x], colors=self._default_color)
         # Show, save and close the plot
-        self._show_save_close(show, save_file)
+        self.show_save_close(show, save_file)
 
     def plot_top(self, top_m=None, best=True, action_wrapper: ActionWrapper = None, show=True, save_file=None):
         # Get the data
@@ -104,12 +109,14 @@ class BanditVisualisation(Visualisation):
         self._plot_text(title=f"Top {top_m} {'best' if best else 'worst'} arms",
                         x_label="Arm", y_label="Average Reward", legend=None, x_ticks=x_ticks)
         # Center the graph around the y_values to plot
+        print(min_reward, max_reward)
+
         plt.ylim(self._center_y_lim(min_reward, max_reward))
 
         # Plot the data
         self._bar_plot(sorted_rewards, get_y=lambda x: x[1], colors=self._default_color)
         # Show, save and close the plot
-        self._show_save_close(show, save_file)
+        self.show_save_close(show, save_file)
 
         if action_wrapper is not None:
             self._print_top_arms(sorted_rewards, best, action_wrapper)
@@ -153,7 +160,7 @@ class BanditVisualisation(Visualisation):
 
         plt.legend()
         # Show, save and close the plot
-        self._show_save_close(show, save_file)
+        self.show_save_close(show, save_file)
 
     def plot_single_arm(self, arm, stride_csv_directory, file_name=None, plot_average=False, plot_cumulative=False,
                         show=True, save_file=None):
@@ -197,7 +204,7 @@ class BanditVisualisation(Visualisation):
                 plt.plot(range(len(average)), average, lw=lw * 3, color=colors[idx], label=n)
         plt.legend()
         # Show, save and close the plot
-        self._show_save_close(show, save_file)
+        self.show_save_close(show, save_file)
 
     def plot_arm_frequency(self, requested_arms=None, best=True, show=True, save_file=None):
         # Get the data
@@ -220,7 +227,7 @@ class BanditVisualisation(Visualisation):
         # Plot the data
         self._bar_plot(sorted_episodes, colors=self._default_color)
         # Show, save and close the plot
-        self._show_save_close(show, save_file)
+        self.show_save_close(show, save_file)
 
     def get_top_arms(self, top_rewards=True, best=True):
         # Top based on rewards
@@ -268,4 +275,48 @@ class BanditVisualisation(Visualisation):
         #     plt.violinplot(rewards[arm], [idx])
 
         # Show, save and close the plot
-        self._show_save_close(show, save_file)
+        self.show_save_close(show, save_file)
+
+    def plot_mean_violin(self, bandit, requested_arms=None, sorted_arms=False, best=True, show=True, save_file=None):
+        """Create a violin plot for the requested arms."""
+        arms = self.arms if requested_arms is None else requested_arms
+        _, min_reward, max_reward = self.rewards_per_arm
+
+
+        rewards = {}
+        bandit.load(t="_end")
+        for a in arms:
+            posterior = bandit.posteriors[a]
+            r = [posterior.sample(t) for t in range(100)]
+            rewards[a] = r
+
+        # Sort if requested
+        if sorted_arms:
+            # Get the top best/worst
+            rewards = sorted(rewards.items(), key=lambda ar: np.mean(ar[1]), reverse=best)
+            min_reward = rewards[-1 if best else 0][1]
+            max_reward = rewards[0 if best else -1][1]
+            arms = [a for a, r in rewards]
+        x_ticks = (range(len(arms)), arms)
+
+        # Set up the plot
+        self._plot_text(title=f"Density of outcome distributions",
+                        x_label="Arm", y_label="reward", legend=None, x_ticks=x_ticks)
+        # Center the graph around the y_values to plot
+        # plt.ylim(self._center_y_lim(min_reward, max_reward))  # TODO: fix
+
+        rewards = [rewards[arm] for arm in arms]
+        plt.violinplot(rewards, x_ticks[0],
+                       points=200, vert=True, widths=1.0,
+                       # showmeans=True, showextrema=True, showmedians=True,  # TODO: separate
+                       showmeans=True, showextrema=True, showmedians=False,  # TODO: separate
+                       bw_method=0.5
+                       )
+
+        # for idx, arm in enumerate(arms):
+        #     # print(rewards)
+        #     # print(rewards[arm], [idx])
+        #     plt.violinplot(rewards[arm], [idx])
+
+        # Show, save and close the plot
+        self.show_save_close(show, save_file)

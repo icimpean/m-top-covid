@@ -15,12 +15,12 @@ class GaussianMixturePosterior(Posterior):
         super(GaussianMixturePosterior, self).__init__(seed)
         # The internal mixture distribution
         self._mixture = BayesianGaussianMixture(n_components=k, covariance_type='full', reg_covar=1e-06,
-                                                tol=tol, max_iter=max_iter, n_init=1, init_params='random',
+                                                tol=tol, max_iter=max_iter, n_init=3, init_params='random',
                                                 weight_concentration_prior_type='dirichlet_process',
                                                 weight_concentration_prior=None, mean_precision_prior=None,
                                                 mean_prior=None, degrees_of_freedom_prior=None, covariance_prior=None,
                                                 random_state=seed,
-                                                warm_start=True,
+                                                warm_start=False,
                                                 verbose=0, verbose_interval=10)
 
     @staticmethod
@@ -36,7 +36,8 @@ class GaussianMixturePosterior(Posterior):
         if len(X) >= self._mixture.n_components:
             self._mixture.fit(X)
         else:
-            logging.warning(f"Only one reward gathered for BGM fitting: {X}. Using it duplicated.")
+            logging.warning(f"Less rewards gathered than number of components for BGM fitting: {X}. "
+                            f"Using it duplicated.")
             X = [X[0]] * self._mixture.n_components
             self._mixture.fit(X)
 

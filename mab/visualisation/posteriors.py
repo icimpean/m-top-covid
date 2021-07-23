@@ -38,13 +38,16 @@ class PosteriorVisualisation(Visualisation):
         # Plot the posterior for the given arm
         x = self._get_lin_space(bandit, arms, n_samples)
         for arm in arms:
-            self._posterior(bandit.posteriors[arm], x, n_samples, separate_mixtures, label=f"arm {arm}")
+            self.posterior(bandit.posteriors[arm], x, n_samples, separate_mixtures, label=f"arm {arm}")
         # Only legend if more than 1 posterior, or if separate mixtures requested
         # TODO: keep restriction on max labels for large number of posteriors?
         if (len(arms) > 1 or separate_mixtures) and len(arms) <= 20:
             plt.legend()
+
+        plt.xlim(5, 30)  # TODO
+
         # Show, save and close the plot
-        self._show_save_close(show, save_file)
+        self.show_save_close(show, save_file)
 
     @staticmethod
     def _get_lin_space(bandit: Bandit, arms, n_samples, distance=4):
@@ -69,7 +72,7 @@ class PosteriorVisualisation(Visualisation):
         x = np.linspace(min_x, max_x, n_samples)
         return x
 
-    def _posterior(self, posterior: Posterior, x, n_samples, separate_mixtures, label="total"):
+    def posterior(self, posterior: Posterior, x, n_samples, separate_mixtures, label="total"):
         # Gaussian Mixture Posterior
         if isinstance(posterior, GaussianMixturePosterior):
             mixture = posterior.get_mixture()
@@ -87,3 +90,33 @@ class PosteriorVisualisation(Visualisation):
         # No plotting method implemented
         else:
             raise NotImplementedError(f"No plotting method defined for {posterior}")
+
+    def plot_env_posterior(self, bandit: Bandit, arm, t="_end", n_samples=2000, separate_mixtures=True,
+                           show=True, save_file=None, save_file2=None):
+        """Plot the posterior distribution for the given arm of the bandit."""
+        env = bandit.env
+
+        min_x = np.inf
+        max_x = -np.inf
+        for k, (pi, mean, std_dev) in enumerate(zip(env.pi[arm], env.means[arm], env.std_dev[arm])):
+            x1 = mean - 3*std_dev**2
+            x2 = mean + 3*std_dev**2
+            min_x = min(min_x, x1)
+            max_x = max(max_x, x2)
+        new_x = np.linspace(min_x, max_x, 1000)
+        new_y = np.zeros_like(new_x)
+        for k, (pi, mean, std_dev) in enumerate(zip(env.pi[arm], env.means[arm], env.std_dev[arm])):
+            y = stats.norm.pdf(new_x, mean, std_dev**2)
+            new_y += y * pi
+        plt.plot(new_x, new_y, label=f"Env arm {arm}")
+        # Center the graph around the rewards to plot
+        # x_lim = (max_x + min_x) / 2 * 1
+        # plt.xlim(min_x - x_lim, max_x - x_lim)
+        plt.xlim(5, 30)  # TODO
+
+        plt.legend()
+
+        # Show, save and close the plot
+        self.show_save_close(show, save_file)
+
+        self._posteriors(bandit, [arm], t, n_samples, separate_mixtures, show, save_file2)

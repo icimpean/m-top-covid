@@ -2,34 +2,21 @@ import csv
 import xml.etree.ElementTree as ET
 from datetime import date, timedelta
 
+from calendar_args import parser
+
+
 NA = "NA"
 general = "general"
 boolean = "boolean"
 double = "double"
 
 
-def _fill(writer, distancing, d_0, d_compliance, d_exit, d_end, no_distancing, cnt_reduction, cnt_reduction_exit,
-          ages=(NA,), fill_holidays=()):
-    range_before = [d for d in _date_range(d_0, d_compliance) if d not in fill_holidays]
-    range_compliance = [d for d in _date_range(d_compliance, d_exit) if d not in fill_holidays]
-    range_exit = [d for d in _date_range(d_exit, d_end, inclusive=True) if d not in fill_holidays]
-    # Only add days that are not holidays
+def _fill(writer, category, d_start, d_end, cnt_reduction, value_type=double, ages=(NA,), fill_holidays=()):
+    # Skip holidays
+    date_range = [d for d in _date_range(d_start, d_end, inclusive=True) if d not in fill_holidays]
     for age in ages:
-        # Days before reduction
-        for d in range_before:
-            writer.writerow([distancing, d, no_distancing, double, age])
-        # Days of contact reduction
-        for d in range_compliance:
-            writer.writerow([distancing, d, cnt_reduction, double, age])
-        # Exit strategy
-        for d in range_exit:
-            writer.writerow([distancing, d, cnt_reduction_exit, double, age])
-
-
-def _fill_(writer, distancing, d_start, d_end, value, ages=(NA,)):
-    for age in ages:
-        for d in _date_range(d_start, d_end, inclusive=True):
-            writer.writerow([distancing, d, value, double, age])
+        for d in date_range:
+            writer.writerow([category, d, cnt_reduction, value_type, age])
 
 
 def _find(e_tree, match, second_match=None, fun=lambda text: text, default_value=None):
@@ -67,12 +54,6 @@ def _date_range(start, end, inclusive=False):
 
 # The public holidays
 holidays = [
-    # 2019
-    "2019-01-01", "2019-04-22", "2019-05-01", "2019-05-30", "2019-06-10", "2019-07-21", "2019-08-15",
-    "2019-11-01", "2019-11-11", "2019-12-25",
-    # 2020
-    "2020-01-01", "2020-04-13", "2020-05-01", "2020-05-21", "2020-06-01", "2020-07-21", "2020-08-15",
-    "2020-11-01", "2020-11-11", "2020-12-25",
     # 2021
     "2021-01-01", "2021-04-05", "2021-05-01", "2021-05-13", "2021-06-24", "2021-07-21", "2021-08-15",
     "2021-11-01", "2021-11-11", "2021-12-25",
@@ -109,16 +90,14 @@ def create_calendar(xml_config_file, calendar_file, with_holidays=False):
     tree = ET.parse(xml_config_file)
     root = tree.getroot()
 
-    start_date = _find(root, "start_date", fun=_to_date, default_value=date(2021, 1, 1))
-    compliance_delay_workplace = _find(root, "compliance_delay_workplace", fun=int, default_value=0)
-    compliance_delay_other = _find(root, "compliance_delay_other", fun=int, default_value=0)
-    compliance_delay_collectivity = _find(root, "compliance_delay_collectivity", fun=int, default_value=0)
+    # Update the xml file to point to the new calendar file
+    c_file = root.find("holidays_file")
+    c_file.text = calendar_file
+    tree.write(xml_config_file, encoding='unicode')
 
-    date_end = date(2021, 12, 31)
-    # TODO: fixed dates?
-    date_t0 = date(2021, 1, 1)
-    date_exit_wp = date(2021, 12, 31)
-    date_exit_other = date(2021, 12, 31)
+    # Start and end date of the calendar
+    start_date = _find(root, "start_date", fun=_to_date, default_value=date(2021, 1, 1))
+    end_date = date(2021, 12, 31)  # TODO optional argument?
 
     # Create the calendar file
     with open(calendar_file, mode='w') as file:
@@ -132,6 +111,10 @@ def create_calendar(xml_config_file, calendar_file, with_holidays=False):
         workplace_distancing = "workplace_distancing"
         community_distancing = "community_distancing"
         collectivity_distancing = "collectivity_distancing"
+        contact_tracing = "contact_tracing"
+        household_clustering = "household_clustering"
+        imported_cases = "imported_cases"
+        universal_testing = "universal_testing"
 
         # Write the holidays
         if with_holidays:
@@ -140,93 +123,82 @@ def create_calendar(xml_config_file, calendar_file, with_holidays=False):
                 writer.writerow([general, holiday, 1, boolean, NA])
             # School holidays
             for holiday in school_holidays:
-                for age in range(18):
-                    writer.writerow([schools_closed, holiday, 1, boolean, age])
+                for age in range(0, 18):
+                    writer.writerow([schools_closed, holiday, 1.0, double, age])
             # College holidays
             for holiday in college_holidays:
                 for age in range(18, 26):
-                    writer.writerow([general, holiday, 1, boolean, NA])
-
-        # Contact reductions
-        no_distancing = 0
+                    writer.writerow([schools_closed, holiday, 1.0, double, age])
 
         # Schools
-        date_compliance_school = date_t0
-        date_exit_school = date_end
-        # Contact reduction values
         cnt_reduction_school = _find(root, "cnt_reduction_school", fun=float, default_value=0)
-        cnt_reduction_school_exit = _find(root, "cnt_reduction_school_exit", fun=float, default_value=0)
-        # Fill in the dates
-        # _fill(writer, schools_closed, date_t0, date_compliance_school, date_exit_school, date_end,
-        #       no_distancing, cnt_reduction_school, cnt_reduction_school_exit, ages=range(26))
-
+        cnt_reduction_school_secondary = _find(root, "cnt_reduction_school_secondary", fun=float,
+                                               default_value=cnt_reduction_school)
+        cnt_reduction_school_tertiary = _find(root, "cnt_reduction_school_tertiary", fun=float,
+                                              default_value=cnt_reduction_school)
+        # Add holidays if requested
+        holidays_k12 = school_holidays if with_holidays else []
+        holidays_col = college_holidays if with_holidays else []
         # Primary
-        _fill(writer, schools_closed, date_t0, date_compliance_school, date_exit_school, date_end,
-              no_distancing, cnt_reduction_school, cnt_reduction_school_exit, ages=range(12),
-              fill_holidays=school_holidays)
+        _fill(writer, schools_closed, start_date, end_date, cnt_reduction_school, value_type=double,
+              ages=range(0, 12), fill_holidays=holidays_k12)
         # Secondary
-        cnt_reduction_school_secondary = _find(root, "cnt_reduction_school_secondary",
-                                               second_match="cnt_reduction_school", fun=float, default_value=0)
-        cnt_reduction_school_exit_secondary = _find(root, "cnt_reduction_school_exit_secondary",
-                                                    second_match="cnt_reduction_school_exit", fun=float, default_value=0)
-        _fill(writer, schools_closed, date_t0, date_compliance_school, date_exit_school, date_end,
-              no_distancing, cnt_reduction_school_secondary, cnt_reduction_school_exit_secondary, ages=range(12, 18),
-              fill_holidays=school_holidays)
+        _fill(writer, schools_closed, start_date, end_date, cnt_reduction_school_secondary, value_type=double,
+              ages=range(12, 18), fill_holidays=holidays_k12)
         # Tertiary
-        cnt_reduction_school_tertiary = _find(root, "cnt_reduction_school_tertiary",
-                                              second_match="cnt_reduction_school", fun=float, default_value=0)
-        cnt_reduction_school_exit_tertiary = _find(root, "cnt_reduction_school_exit_tertiary",
-                                                   second_match="cnt_reduction_school_exit", fun=float, default_value=0)
-        _fill(writer, schools_closed, date_t0, date_compliance_school, date_exit_school, date_end,
-              no_distancing, cnt_reduction_school_tertiary, cnt_reduction_school_exit_tertiary, ages=range(18, 26),
-              fill_holidays=college_holidays)
+        _fill(writer, schools_closed, start_date, end_date, cnt_reduction_school_tertiary, value_type=double,
+              ages=range(18, 26), fill_holidays=holidays_col)
 
         # Workplace
-        date_compliance_wp = date_t0 + timedelta(days=compliance_delay_workplace)
-        # Contact reduction values
         cnt_reduction_workplace = _find(root, "cnt_reduction_workplace", fun=float, default_value=0)
-        cnt_reduction_workplace_exit = _find(root, "cnt_reduction_workplace_exit", fun=float, default_value=0)
-        # Fill in the dates
-        _fill(writer, workplace_distancing, date_t0, date_compliance_wp, date_exit_wp, date_end,
-              no_distancing, cnt_reduction_workplace, cnt_reduction_workplace_exit)
-
+        _fill(writer, workplace_distancing, start_date, end_date, cnt_reduction_workplace, value_type=double)
         # Community
-        date_compliance_other = date_t0 + timedelta(days=compliance_delay_other)
-        # Contact reduction values
         cnt_reduction_other = _find(root, "cnt_reduction_other", fun=float, default_value=0)
-        cnt_reduction_other_exit = _find(root, "cnt_reduction_other_exit", fun=float, default_value=0)
-        # Fill in the dates
-        _fill(writer, community_distancing, date_t0, date_compliance_other, date_exit_other, date_end,
-              no_distancing, cnt_reduction_other, cnt_reduction_other_exit)
-
+        _fill(writer, community_distancing, start_date, end_date, cnt_reduction_other, value_type=double)
         # Collectivity
-        date_compliance_collectivity = date_t0 + timedelta(days=compliance_delay_collectivity)
-        # Contact reduction values
-        cnt_baseline_collectivity = _find(root, "cnt_baseline_collectivity", fun=float, default_value=0)
         cnt_reduction_collectivity = _find(root, "cnt_reduction_collectivity", fun=float, default_value=0)
-        # Fill in the dates
-        _fill(writer, collectivity_distancing, date_t0, start_date, date_compliance_collectivity, date_end,
-              cnt_baseline_collectivity, cnt_baseline_collectivity, cnt_reduction_collectivity)
+        _fill(writer, collectivity_distancing, start_date, end_date, cnt_reduction_collectivity, value_type=double)
 
         # Contact Tracing
-        contact_tracing = "contact_tracing"
-        _fill_(writer, contact_tracing, start_date, date_end, value=1)
-
+        cnt_tracing = 1  # TODO: from config
+        _fill(writer, contact_tracing, start_date, end_date, cnt_tracing, value_type=boolean)
         # Household Clustering
-        household_clustering = "household_clustering"
-        _fill_(writer, household_clustering, start_date, date_end, value=0)
-
+        cnt_household_clustering = 0  # TODO: from config
+        _fill(writer, household_clustering, start_date, end_date, cnt_household_clustering, value_type=boolean)
         # Imported Cases
-        imported_cases = "imported_cases"
-        _fill_(writer, imported_cases, start_date, date_end, value=0)
-
+        imported = 0  # TODO: from config
+        _fill(writer, imported_cases, start_date, end_date, imported, value_type=boolean)
         # Universal Testing
-        universal_testing = "universal_testing"
-        _fill_(writer, universal_testing, start_date, date_end, value=0)
+        cnt_universal_testing = 0  # TODO: from config
+        _fill(writer, universal_testing, start_date, end_date, cnt_universal_testing, value_type=boolean)
+
+
+def create_contact_vectors(sim_days, cnt_workplace, cnt_community, cnt_collectivity):
+    workplace_distancing = [cnt_workplace for day in range(sim_days)]
+    community_distancing = [cnt_community for day in range(sim_days)]
+    collectivity_distancing = [cnt_collectivity for day in range(sim_days)]
+    return workplace_distancing, community_distancing, collectivity_distancing
+
+
+def get_contact_reduction(xml_config_file, sim_days):
+    """Create contact reduction vectors from the given configuration and number of days."""
+    # Read the file
+    tree = ET.parse(xml_config_file)
+    root = tree.getroot()
+    # Get the values
+    cnt_reduction_workplace = _find(root, "cnt_reduction_workplace", fun=float, default_value=0)
+    cnt_reduction_community = _find(root, "cnt_reduction_other", fun=float, default_value=0)
+    cnt_reduction_collectivity = _find(root, "cnt_reduction_collectivity", fun=float, default_value=0)
+
+    return create_contact_vectors(sim_days, cnt_reduction_workplace, cnt_reduction_community, cnt_reduction_collectivity)
 
 
 if __name__ == '__main__':
-    create_calendar("./config0.xml", "./test_calendar.csv", with_holidays=True)
 
-    # Agent-based HH config
-    # create_calendar("./run_HH.xml", "./HH_calendar.csv")
+    args = parser.parse_args()
+    create_calendar(args.config, args.calendar, with_holidays=not args.no_holidays)
+
+    # include_holidays = True
+    # config_file = "config/config0_11M.xml"
+    # calendar_name = "calendars/calendar_0.csv"  # if include_holidays else "calendars/calendar_no_holidays_0.csv"
+    # create_calendar(config_file, calendar_name, with_holidays=include_holidays)

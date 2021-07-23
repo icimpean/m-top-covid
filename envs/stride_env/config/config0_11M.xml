@@ -1,0 +1,92 @@
+<!-- This file is part of the Stride software [2021-07-14 10:18:10]-->
+<run>
+  <!--  General  -->
+  <event_log_level>Transmissions</event_log_level>
+  <event_output_file>true</event_output_file>
+  <global_information_policy>NoGlobalInformation</global_information_policy>
+  <output_cases>true</output_cases>
+  <output_persons>false</output_persons>
+  <output_prefix>t</output_prefix>
+  <output_summary>true</output_summary>
+  <stride_log_level>info</stride_log_level>
+  <track_index_case>false</track_index_case>
+  <use_install_dirs>true</use_install_dirs>
+  <rng_seed>2021</rng_seed>
+
+  <num_threads>1</num_threads>
+
+
+  <start_date>2021-01-01</start_date>
+  <num_days>60</num_days>
+
+  <!--  Data files  -->
+  <age_contact_matrix_file>../../stride_omp_python/data/contact_matrix_flanders_conditional_teachers.xml</age_contact_matrix_file>
+  <disease_config_file>../../stride_omp_python/data/disease_covid19_lognorm_child.xml</disease_config_file>
+
+  <population_file>../../stride_omp_python/data/pop_belgium11M_c500_teachers_censushh.csv</population_file>
+  <population_type>default</population_type>
+
+  <holidays_file>../envs/stride_env/calendars/calendar_0.csv</holidays_file>
+
+  <!--  Misc TODO: used? -->
+  <num_participants_survey>30</num_participants_survey>
+  <!--  Cost effectiveness analysis TODO: used? -->
+  <num_cea_samples>10000</num_cea_samples>
+
+  <!--  Disease Seeding  -->
+  <r0>3.37</r0>
+  <seeding_age_max>99</seeding_age_max>
+  <seeding_age_min>1</seeding_age_min>
+  <num_infected_seeds>255</num_infected_seeds>
+
+  <!--  Population immunity (natural & vaccine induced immunity)  -->
+  <immunity_link_probability>0</immunity_link_probability>
+<!--  <immunity_rate>0.8</immunity_rate>-->
+<!--  <immunity_profile>None</immunity_profile>-->
+  <immunity_profile>AgeDependent</immunity_profile>
+  <immunity_distribution_file>../../FullPop/immunity_covid_belgium.xml</immunity_distribution_file>
+  <!--  -->
+  <vaccine_link_probability>0</vaccine_link_probability>
+  <vaccine_profile>None</vaccine_profile>
+  <vaccine_rate>0</vaccine_rate>
+
+  <!--  Hospitalisations  -->
+  <hosp_probability_factor>0.35</hosp_probability_factor>
+  <hospital_category_age>0,10,20,30,40,50,60,70,80</hospital_category_age>
+  <hospital_probability_age>0.221,0.018,0.041,0.033,0.056,0.071,0.139,0.367,1</hospital_probability_age>
+  <hospital_mean_delay_age>3,3,7,7,7,7,6,6,1</hospital_mean_delay_age>
+
+  <!--  Universal Testing  -->
+  <unitest_pool_allocation>../../stride_omp_python/data/pop_belgium11M_c500_pool_allocation_$unitest_pool_size.csv</unitest_pool_allocation>
+  <unitest_fnr>0.01</unitest_fnr>
+  <unitest_n_tests_per_day>0</unitest_n_tests_per_day>
+  <unitest_pool_size>32</unitest_pool_size>
+  <unitest_test_compliance>0.9</unitest_test_compliance>
+  <unitest_isolation_compliance>0.8</unitest_isolation_compliance>
+
+  <!--  Contact Reduction  -->
+  <cnt_reduction_workplace>0.76</cnt_reduction_workplace>
+  <cnt_reduction_other>0.86</cnt_reduction_other>
+  <compliance_delay_workplace>6</compliance_delay_workplace>
+  <compliance_delay_other>7</compliance_delay_other>
+  <compliance_delay_collectivity>1</compliance_delay_collectivity>
+  <!--  Added  -->
+  <cnt_reduction_school>0.0</cnt_reduction_school>
+<!--  <cnt_reduction_school>0.0</cnt_reduction_school>&lt;!&ndash;  primary &ndash;&gt;-->
+<!--  <cnt_reduction_school_secondary>0.5</cnt_reduction_school_secondary>-->
+<!--  <cnt_reduction_school_tertiary>0.5</cnt_reduction_school_tertiary>-->
+  <!--  -->
+  <cnt_reduction_collectivity>0</cnt_reduction_collectivity>
+  <cnt_intensity_householdCluster>0</cnt_intensity_householdCluster>
+  <num_daily_imported_cases>0</num_daily_imported_cases>
+
+  <!--  Contact Tracing  -->
+  <detection_probability>0.7</detection_probability>
+  <tracing_efficiency_household>0.9</tracing_efficiency_household>
+  <tracing_efficiency_other>0.5</tracing_efficiency_other>
+  <case_finding_capacity>10000</case_finding_capacity>
+  <delay_isolation_index>1</delay_isolation_index>
+  <delay_contact_tracing>2</delay_contact_tracing>
+  <test_false_negative>0.1</test_false_negative>
+
+</run>

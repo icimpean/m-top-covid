@@ -29,4 +29,9 @@
     <vaccine_link_probability>0</vaccine_link_probability>
     <vaccine_profile>Random</vaccine_profile>
     <vaccine_rate>0.8</vaccine_rate>
+
+    <hosp_probability_factor>0.35</hosp_probability_factor>
+    <hospital_category_age>0,10,20,30,40,50,60,70,80</hospital_category_age>
+    <hospital_probability_age>0.221,0.018,0.041,0.033,0.056,0.071,0.139,0.367,1</hospital_probability_age>
+    <hospital_mean_delay_age>3,3,7,7,7,7,6,6,1</hospital_mean_delay_age>
 </run>

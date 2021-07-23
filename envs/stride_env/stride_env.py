@@ -91,8 +91,8 @@ class StrideMDPEnv(Env):
         self.mRNA_properties = mRNA_properties
         self.adeno_properties = adeno_properties
         # Action space for an action
-        self._action_space = len(stride.AllVaccineTypes) ** len(stride.AllAgeGroups)
         self.action_wrapper = ActionWrapper(available_vaccines)
+        self.nr_arms = len(stride.AllVaccineTypes) ** len(stride.AllAgeGroups)
 
         # Reward
         self.reward = reward
@@ -127,6 +127,7 @@ class StrideMDPEnv(Env):
         output_dir = output_dir if output_dir is not None else ""
         output_prefix = output_prefix if output_prefix is not None else ""
         seed = seed if seed is not None else self.seed
+        # Create a new simulation
         self._mdp.Create(self.config_file, self.mRNA_properties, self.adeno_properties,
                          seed, output_dir, output_prefix)
         self._population_size = self._mdp.GetPopulationSize()
@@ -168,9 +169,9 @@ class StrideMDPEnv(Env):
             self._mdp.SimulateDay()
             reward = self.get_reward()
 
-            print(f"infected: {self._mdp.CountInfectedCases()}, exposed: {self._mdp.CountExposedCases()}, "
-                  f"infectious: {self._mdp.CountInfectiousCases()}, symptomatic: {self._mdp.CountSymptomaticCases()}, "
-                  f"hospitalised: {self._mdp.CountHospitalisedCases()}, total hosp.: {self._mdp.GetTotalHospitalised()}")
+            # print(f"infected: {self._mdp.CountInfectedCases()}, exposed: {self._mdp.CountExposedCases()}, "
+            #       f"infectious: {self._mdp.CountInfectiousCases()}, symptomatic: {self._mdp.CountSymptomaticCases()}, "
+            #       f"hospitalised: {self._mdp.CountHospitalisedCases()}, total hosp.: {self._mdp.GetTotalHospitalised()}")
 
         # Transform the reward as requested
         reward = self._transform_reward(reward)

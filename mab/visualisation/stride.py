@@ -48,14 +48,15 @@ class StrideVisualisation(Visualisation):
             max_value = max(y_values)
             return y_values, min_value, max_value
 
-    def plot_run(self, stride_csv_directory, episode, show=True, save_file=None):
+    def plot_run(self, stride_csv_directory, episode, plot_cumulative=False, show=True, save_file=None):
         # Set up the plot
         self._plot_text(title="Cases for a single run", x_label="Days", y_label="# Individuals", legend=None)
 
         # Get the data for each of the files:
         min_value = np.inf
         max_value = -np.inf
-        for file_name, name in self.files_names.items():
+        names = self.cumulative_file_names if plot_cumulative else self.files_names
+        for file_name, name in names.items():
             stride_csv_file = Path(stride_csv_directory) / str(episode) / file_name
             y_values, min_y, max_y = self.load_file(stride_csv_file)
             min_value = min(min_value, min_y)
@@ -68,4 +69,4 @@ class StrideVisualisation(Visualisation):
         plt.legend()
 
         # Show, save and close the plot
-        self._show_save_close(show, save_file)
+        self.show_save_close(show, save_file)

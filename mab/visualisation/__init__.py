@@ -27,7 +27,10 @@ class Visualisation(object):
 
     def _center_y_lim(self, min_y, max_y):
         # Center the graph around the rewards to plot
-        y_lim = (max_y + min_y) / 2 * self._centering_y
+        if (min_y <= 1 and max_y <= 1) or abs(max_y - min_y) < ((max_y + min_y) / 2 * 0.001):
+            y_lim = (max_y + min_y) / 2 * self._centering_y ** 2 * 4
+        else:
+            y_lim = (max_y + min_y) / 2 * self._centering_y
         return min_y - y_lim, max_y + y_lim
 
     @staticmethod
@@ -54,7 +57,7 @@ class Visualisation(object):
             plt.bar(idx, get_y(d), color=self._get_color(idx, colors), width=w)
 
     @staticmethod
-    def _show_save_close(show=True, save_file=None):
+    def show_save_close(show=True, save_file=None):
         if save_file is not None:
             plt.savefig(save_file, bbox_inches='tight')
         if show:
