@@ -7,6 +7,7 @@ import time
 import sys
 sys.path.append("./")  # for command-line execution to find the other packages (e.g. envs)
 
+from envs.stride_env.action_wrapper import ActionWrapper, NoWasteActionWrapper
 from envs.stride_env.stride_env import StrideMDPEnv, Reward
 from args import parser as general_parser
 from bandits.random_bandit import RandomBandit
@@ -16,7 +17,7 @@ from resources.vaccine_supply import ConstantVaccineSupply
 
 # Play a single arm multiple times
 parser = argparse.ArgumentParser(description="=============== MDP STRIDE ===============",
-                                 epilog="example:\n\tpython3 mab/play_arm.py envs/stride_env/config/config0_11M.xml ",
+                                 epilog="example:\n\tpython3 mab/play_arms.py envs/stride_env/config/run_default.xml ../runs/test_run0/ 60 0 2",
                                  formatter_class=argparse.RawDescriptionHelpFormatter,
                                  parents=[general_parser])
 parser.add_argument("arm", type=int, help="The arm to play")
@@ -46,11 +47,12 @@ def run_arm(parser_args):
                        # TODO: add in XML config
                        mRNA_properties=stride.LinearVaccineProperties("mRNA vaccine", 0.95, 0.95, 1.00, 42),
                        adeno_properties=stride.LinearVaccineProperties("Adeno vaccine", 0.67, 0.67, 1.00, 42),
+                       action_wrapper=NoWasteActionWrapper
                        )
 
     # The sampling method
     sampling_method = RandomSampling
-    # Random bandit
+    # Random bandit (random bandit stores no posteriors, only used to play the arms requested by the commandline)
     bandit = RandomBandit(env.nr_arms, env, sampling_method, seed=parser_args.seed,
                           save_interval=100, log_dir=parser_args.save_dir)
 

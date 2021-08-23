@@ -1,3 +1,4 @@
+import csv
 import logging
 import os
 import time
@@ -118,11 +119,15 @@ class Bandit(object):
         #
         self.env.close()
 
-    def play_arms(self, arms):
+    def play_arms(self, arms, callbacks=None):
         self.logger.create_file(self.log_file)
 
         for t, arm in enumerate(arms):
             self._play(t, lambda _: arm)
+
+            if callbacks is not None:
+                for callback in callbacks:
+                    callback(t, arm)
 
         # TODO: remove
         # self.env.close_x()
@@ -140,3 +145,16 @@ class Bandit(object):
     def load(self, t):
         """Load the bandit's weights/posteriors"""
         raise NotImplementedError
+
+
+def load_rewards(save_directory):
+    with open(Path(save_directory) / "bandit_log.csv", mode="r") as file:
+        reader = csv.DictReader(file)
+        skip_first = True
+        rewards = []
+        for line in reader:
+            if skip_first:
+                skip_first = False
+                continue
+            rewards.append(float(line["Reward"]))
+        return rewards

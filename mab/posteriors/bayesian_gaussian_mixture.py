@@ -43,10 +43,8 @@ class GaussianMixturePosterior(Posterior):
 
     def sample(self, t):
         """Sample the means"""
-
         samples = []
         weights = []
-        sample = 0
         # Sample each mixture
         for m in range(self._mixture.n_components):
             # Sample the mixture's mean
@@ -59,21 +57,11 @@ class GaussianMixturePosterior(Posterior):
             m_sample = self.rng.normal(loc=mu, scale=mu_std_dev)
             # Adapt the mean according to its weight
             w = self._mixture.weights_[m]
-            # Sample the weight distribution?
-            # w_concentration = self._mixture.weight_concentration_[m]
-            # w_sample = self.rng.dirichlet()
-
             weights.append(w)
             samples.append(m_sample)
 
-            # print(mu, mu_precision, mu_std_dev, m_sample, w, w_concentration)
-
         # Choose a mean according to the weights
         sample = random.choices(samples, weights, k=1)[0]
-
-        # sample = self.sample_old(t)
-        # print("sample:", sample)
-
         return sample
 
     def sample_old(self, t):
@@ -92,6 +80,23 @@ class GaussianMixturePosterior(Posterior):
 
     def get_mixture(self):
         return self._mixture
+
+    def mixture_mean(self):
+        """The mean of the gaussian mixture distribution."""
+        mean = np.sum(self._mixture.means_ * self._mixture.weights_)
+        return mean
+
+    def mixture_mean_variance(self):
+        pi = self._mixture.weights_
+        precision = self._mixture.mean_precision_
+        var_k = 1 / precision
+        # std_dev = var_k ** (1 / 2)
+
+        mu = self.mixture_mean()
+        mu_k = self._mixture.means_
+        total_variance = np.sum(var_k * pi) + np.sum(mu_k.T * mu_k * pi - mu.T * mu)
+
+        return total_variance
 
 
 class BGMPosteriors(SinglePosteriors):

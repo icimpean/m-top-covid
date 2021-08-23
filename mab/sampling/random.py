@@ -19,4 +19,4 @@ class RandomSampling(Sampling):
 
     def sample_arm(self, t):
         """Sample an arm based on the sampling method."""
-        return self.rng.uniform(0, self._nr_arms)
+        return self.rng.integers(0, self._nr_arms)

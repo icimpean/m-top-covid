@@ -1,11 +1,12 @@
 # noinspection PyUnresolvedReferences
 import pylibstride as stride
 
-# import gc
 from enum import Enum, auto
 import numpy as np
 import random
 import resource
+import logging
+from typing import Type
 
 from envs.env import Env
 from envs.stride_env.action_wrapper import ActionWrapper
@@ -57,17 +58,23 @@ class StrideMDPEnv(Env):
         config_file: (Optional) The XML configuration file for the STRIDE simulator.
             Defaults to provided file in this directory.
         available_vaccines: (Optional) The VaccineSupply for the simulation.
+        reward: (Optional) Which metric from stride to use as the reward, default is
+            the total number of infections.
         reward_type: (Optional) How to process the reward signal before providing it to the agent.
             Accepted values:
                 - 'neg':  returns the negative of the reward signal
                 - 'norm': normalise the reward based on the entire population
                 -  None:  leaves the reward unchanged
+        mRNA_properties: The properties of the mRNA vaccines
+        adeno_properties: The properties of the Adeno vaccines
+        action_wrapper: (Optional) The action wrapper to use to translate arms into vaccination requests.
     """
     def __init__(self, states=False, seed=0, episode_duration=6 * 30, step_size=2 * 30,
-                 config_file="./run_default.xml", available_vaccines: VaccineSupply = ConstantVaccineSupply(),
+                 config_file="./config/run_default.xml", available_vaccines: VaccineSupply = ConstantVaccineSupply(),
                  reward=Reward.total_infected, reward_type=None,
                  mRNA_properties: stride.VaccineProperties = stride.LinearVaccineProperties("mRNA vaccine", 0.95, 0.95, 1.00, 42),
-                 adeno_properties: stride.VaccineProperties = stride.LinearVaccineProperties("Adeno vaccine", 0.67, 0.67, 1.00, 42)):
+                 adeno_properties: stride.VaccineProperties = stride.LinearVaccineProperties("Adeno vaccine", 0.67, 0.67, 1.00, 42),
+                 action_wrapper: Type[ActionWrapper] = ActionWrapper):
         # Super call
         super(StrideMDPEnv, self).__init__(seed)
         # Set the seed
@@ -91,13 +98,14 @@ class StrideMDPEnv(Env):
         self.mRNA_properties = mRNA_properties
         self.adeno_properties = adeno_properties
         # Action space for an action
-        self.action_wrapper = ActionWrapper(available_vaccines)
+        self.action_wrapper = action_wrapper(available_vaccines)
         self.nr_arms = len(stride.AllVaccineTypes) ** len(stride.AllAgeGroups)
 
         # Reward
         self.reward = reward
         self.reward_type = reward_type
         self._population_size = 0
+        self._age_groups_sizes = {}
 
         # The internal state and timestep
         self.states = states
@@ -113,11 +121,6 @@ class StrideMDPEnv(Env):
             self._timestep = 0
             self._mdp.End()
             self._e += 1
-
-            # del self._mdp
-            # gc.collect()
-            # self._mdp = stride.MDP()
-
             self._mdp.ClearSimulation()
 
         # Measure memory usage from python
@@ -131,14 +134,12 @@ class StrideMDPEnv(Env):
         self._mdp.Create(self.config_file, self.mRNA_properties, self.adeno_properties,
                          seed, output_dir, output_prefix)
         self._population_size = self._mdp.GetPopulationSize()
+        self._age_groups_sizes = self._mdp.GetAgeGroupSizes()
         return None
 
     def close_x(self):
         for i, x in enumerate(self._x):
             print(f"Resources: {x} bytes ({round(x / 1024, 2)} kB, {round(x / 1024 ** 2, 2)} MB, {round(x / 1024 ** 3, 2)} GB)")
-        # print("---")
-        # for i, x in enumerate(self._x):
-        #     print(x / 1024 ** 2)
 
     def close(self):
         """Signal the simulator to end the simulation and its own processes."""
@@ -154,10 +155,6 @@ class StrideMDPEnv(Env):
         Returns:
             state, reward, done, info - feedback from the interaction with the environment.
         """
-        # Each arm (action) is a collection of actions per age group
-        days = range(self._timestep * self.step_size, (self._timestep * self.step_size) + self.step_size)
-        combined_action = self.action_wrapper.get_combined_action(action, days, self._population_size,
-                                                                  self._mdp.GetAgeGroupSizes())
         print(f"Chosen action {action}")
         # print(f"Population size: {self._population_size}")
         # print(f"Age groups {self._mdp.GetAgeGroupSizes()}")
@@ -165,13 +162,17 @@ class StrideMDPEnv(Env):
         info = {}
         # Execute the action to vaccinate and simulate for as many days as required
         for t in range(self.step_size):
-            self._vaccinate(combined_action[t])
+            combined_action = self.action_wrapper.get_combined_action(action, self._timestep + t, self._population_size,
+                                                                      self._mdp.GetAgeGroupSizes())
+            self._vaccinate(combined_action)
             self._mdp.SimulateDay()
             reward = self.get_reward()
 
             # print(f"infected: {self._mdp.CountInfectedCases()}, exposed: {self._mdp.CountExposedCases()}, "
             #       f"infectious: {self._mdp.CountInfectiousCases()}, symptomatic: {self._mdp.CountSymptomaticCases()}, "
             #       f"hospitalised: {self._mdp.CountHospitalisedCases()}, total hosp.: {self._mdp.GetTotalHospitalised()}")
+            print(f"Unvaccinated age groups:", self._mdp.GetAgeGroupSizes())
+            print(f"Vaccinated age groups:", self._mdp.GetVaccinatedAgeGroups())
 
         # Transform the reward as requested
         reward = self._transform_reward(reward)
@@ -186,7 +187,6 @@ class StrideMDPEnv(Env):
         # Could be parallelized in STRIDE:
         #   multiple age groups could be vaccinated at the same time since they don't overlap
         for action in combined_action:
-            print(f"Vaccinating...", action)
             self._mdp.Vaccinate(*action)
 
     @staticmethod

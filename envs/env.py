@@ -1,8 +1,6 @@
 import random
 
-import matplotlib.pyplot as plt
 import numpy as np
-import scipy.stats as stats
 
 
 class Env(object):
@@ -15,7 +13,8 @@ class Env(object):
 
         # The observation and action space
         self.observation_space = None
-        self.action_space = (1,)
+        self.nr_actions = 1
+        self.action_space = (self.nr_actions,)
 
         # The internal state and timestep
         self._state = None
@@ -43,6 +42,9 @@ class Env(object):
         """Print information about the environment.
 
         Useful for randomised environments"""
+        pass
+
+    def close(self):
         pass
 
 
@@ -90,21 +92,9 @@ class GaussianEnv(Env):
             print(f"arm {arm}: mean {mean}, std. dev. {std_dev}")
         print(stripes)
 
-    def plot_rewards(self, show=False):
-        plt.title(f"Rewards for gaussian environment with {self.nr_actions} actions")
-        for arm, (mean, std_dev) in enumerate(zip(self.means, self.std_dev)):
-            x = np.linspace(mean - 3*std_dev**2, mean + 3*std_dev**2, 100)
-            y = stats.norm.pdf(x, mean, std_dev**2)
-            plt.plot(x, y, label=str(arm))
-        plt.legend()
-        plt.savefig("gaussian rewards environment.png")
-        if show:
-            plt.show()
-        plt.close()
-
 
 class GaussianMixtureEnv(Env):
-    """A Gaussian mixture environment for testing.
+    """A Gaussian mixture environment.
 
     Represents an environment with rewards drawn from a gaussian mixture distribution per arm.
     """
@@ -131,51 +121,8 @@ class GaussianMixtureEnv(Env):
             self.means = self.rng.random(size=(self.nr_actions, self.k))
             self.std_dev = self.rng.random(size=(self.nr_actions, self.k))
         else:
-            # self.means = self.rng.uniform(0, 20, size=(self.nr_actions, self.k)) * 0.5
-            # self.std_dev = self.rng.random(size=(self.nr_actions, self.k)) * 3 + 0.5
-
-            # Create a stride population sized distribution
-            # # TODO: remove
-            # pop_size = 600000
-            # pop_min = pop_size * 0.8
-            # pop_max = pop_size
-            # self.means = self.rng.random(size=(self.nr_actions, self.k)) * (pop_max - pop_min) + pop_min
-            # self.std_dev = self.rng.random(size=(self.nr_actions, self.k)) * 300 + 25
-
-            # Fixed environment
-            self.k = 2
-            self.pi = np.array([
-                [1, 1],
-                [1, 3],
-                [4, 15],
-                [12, 18],
-                [2, 3],
-                [17, 19],
-                [2, 6],
-                [3, 1],
-            ], dtype=np.float)
-            self.pi /= self.pi.sum(axis=1, keepdims=True)
-
-            self.means = np.array([
-                [10, 20],
-                [10, 11],
-                [14, 15],
-                [15, 18],
-                [13, 9],
-                [17, 19],
-                [18, 12],
-                [15, 11],
-            ])
-            self.std_dev = np.array([
-                [1, 2],
-                [1.3, 2.2],
-                [1.03, 1.6],
-                [0.6, 0.82],
-                [1.1, 0.93],
-                [1.7, 1.4],
-                [1.01, 1.31],
-                [1.41, 1.5],
-            ]) * 0.5
+            self.means = self.rng.uniform(0, 20, size=(self.nr_actions, self.k)) * 0.5
+            self.std_dev = self.rng.random(size=(self.nr_actions, self.k)) * 3 + 0.5
 
     def _sample_reward(self, action):
         # Choose a mixture for the given action, given their probabilities
@@ -206,31 +153,68 @@ class GaussianMixtureEnv(Env):
                 print(f"\t[mixture {k}] pi: {pi}, mean: {mean}, std. dev. {std_dev}")
         print(stripes)
 
-    def plot_rewards(self, show=False, save_file=None):
-        plt.title(f"Rewards for a Gaussian Mixture Environment with {self.nr_actions} actions")
-        for arm in range(self.nr_actions):
-            min_x = np.inf
-            max_x = -np.inf
-            for k, (pi, mean, std_dev) in enumerate(zip(self.pi[arm], self.means[arm], self.std_dev[arm])):
-                x1 = mean - 3*std_dev**2
-                x2 = mean + 3*std_dev**2
-                min_x = min(min_x, x1)
-                max_x = max(max_x, x2)
-            new_x = np.linspace(min_x, max_x, 1000)
-            new_y = np.zeros_like(new_x)
-            for k, (pi, mean, std_dev) in enumerate(zip(self.pi[arm], self.means[arm], self.std_dev[arm])):
-                y = stats.norm.pdf(new_x, mean, std_dev**2)
-                new_y += y * pi
-            plt.plot(new_x, new_y, label=str(arm))
-            # Center the graph around the rewards to plot
-            # x_lim = (max_x + min_x) / 2 * 1
-            # plt.xlim(min_x - x_lim, max_x - x_lim)
 
-        plt.legend()
-        if not self.normalised:
-            plt.locator_params(axis="both", integer=True, tight=True)
-        if save_file is not None:
-            plt.savefig(save_file)
-        if show:
-            plt.show()
-        plt.close()
+class TestGaussianMixtureEnv(GaussianMixtureEnv):
+    """A Gaussian mixture environment for testing"""
+    def __init__(self, seed=None):
+        # Super call
+        super(TestGaussianMixtureEnv, self).__init__(seed)
+
+        # Fixed environment
+        arms = [
+            [(1, 10, 2), (2, 11, 1.4)],
+            [(2, 8, 1.2), (3, 9, 1)],
+            [(3, 9, 2.1), (4, 11, 1.7)],
+            [(7, 10, 2), (5, 12, 1)],
+            [(1, 10, 1.4), (2, 13, 1)],
+            [(1, 8, 2), (1, 10, 1.1)],
+            [(2, 13, 0.7), (7, 8, 1)],
+            [(1, 10, 0.9), (2, 15, 1.3)],
+        ]
+
+        self.k = 2
+        self.nr_actions = len(arms)
+
+        self.pi = np.zeros(shape=(self.nr_actions, self.k))
+        self.means = np.zeros_like(self.pi)
+        self.std_dev = np.zeros_like(self.pi)
+
+        for arm, values in enumerate(arms):
+            for k, (pi, mean, std_dev) in enumerate(values):
+                self.pi[arm][k] = pi
+                self.means[arm][k] = mean
+                self.std_dev[arm][k] = std_dev
+        self.pi /= self.pi.sum(axis=1, keepdims=True)
+
+
+class Test2GaussianMixtureEnv(GaussianMixtureEnv):
+    """A Gaussian mixture environment for testing"""
+    def __init__(self, seed=None):
+        # Super call
+        super(Test2GaussianMixtureEnv, self).__init__(seed)
+
+        # Fixed environment
+        arms = [
+            [(1, 10, 2), (2, 11, 1.4), (4, 9, 0.8)],
+            [(2, 8, 1.2), (3, 9, 1), (1, 9, 2)],
+            [(3, 9, 2.1), (4, 11, 1.7), (4, 8, 1.2)],
+            [(7, 10, 2), (5, 12, 1), (1, 8, 1.4)],
+            [(1, 10, 1.4), (2, 13, 1), (1, 12, 2)],
+            [(1, 8, 2), (1, 10, 1.1), (1, 12, 1.7)],
+            [(2, 13, 0.7), (7, 8, 1), (3, 11, 1.1)],
+            [(1, 10, 0.9), (2, 15, 1.3), (1, 12, 1)],
+        ]
+
+        self.k = 3
+        self.nr_actions = len(arms)
+
+        self.pi = np.zeros(shape=(self.nr_actions, self.k))
+        self.means = np.zeros_like(self.pi)
+        self.std_dev = np.zeros_like(self.pi)
+
+        for arm, values in enumerate(arms):
+            for k, (pi, mean, std_dev) in enumerate(values):
+                self.pi[arm][k] = pi
+                self.means[arm][k] = mean
+                self.std_dev[arm][k] = std_dev
+        self.pi /= self.pi.sum(axis=1, keepdims=True)
