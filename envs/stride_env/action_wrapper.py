@@ -161,6 +161,13 @@ class ActionWrapper(object):
         # Add any remainder actions at the end => priority to following arm before dividing remainder
         actions.extend(remainder_actions)
 
+        # Avoid 0 or negative -1 vaccine quantities due to rounding in divisions
+        for action in actions.copy():
+            div, group, v_type = action
+            if div <= 0:
+                actions.remove(action)
+                print("Removed invalid action", action)
+
         # Return the actions
         return actions
 
