@@ -140,16 +140,35 @@ class SinglePosteriors(Posteriors):
 
     def print_posteriors(self):
         from mab.posteriors.bayesian_gaussian_mixture import GaussianMixturePosterior
-        if isinstance(self.posteriors[0], GaussianMixturePosterior):
-            stripes = "----------------------------"
-            print(f"--- Bayesian Gaussian Mixture Posteriors ---")
-            for arm in range(self.nr_arms):
-                print(f"Action {arm}:")
-                posterior = self.posteriors[arm].get_mixture()
-                for k in range(posterior.n_components):
-                    print(f"\t[mixture {k}] pi: {posterior.weights_[k]}, mean: {posterior.means_[k][0]}, "
-                          f"cov. {posterior.covariances_[k][0]}")
-            print(stripes)
+        from mab.posteriors.bnpy_gaussian_mixture import BNPYGaussianMixturePosterior
+
+        stripes = "----------------------------"
+        print(f"--- Bayesian Gaussian Mixture Posteriors ---")
+        for arm in range(self.nr_arms):
+            print(f"Action {arm}:")
+            posterior = self.posteriors[arm]
+            print_K_hist = False
+            if isinstance(posterior, GaussianMixturePosterior):
+                posterior = posterior.get_mixture()
+                w = posterior.weights_
+                m = posterior.means_
+                cov = posterior.covariances_
+                K = posterior.n_components
+            elif isinstance(posterior, BNPYGaussianMixturePosterior):
+                w = posterior.get_weights()
+                m = posterior.get_means()
+                cov = posterior.get_cov()
+                K = posterior.get_K()
+                print_K_hist = True
+            else:
+                raise NotImplementedError
+
+            for k in range(K):
+                print(f"\t[mixture {k}] pi: {w[k]}, mean: {m[k]}, cov. {cov[k]}")
+                if print_K_hist:
+                    print(f"\t            K history: {posterior.info['K_history']}")
+            print(f"\tmean: {sum(w * m)}")
+        print(stripes)
 
 
 class GroupPosterior(Posteriors):

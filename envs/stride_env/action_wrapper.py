@@ -1,9 +1,10 @@
 # noinspection PyUnresolvedReferences
 import pylibstride as stride
 
+import csv
 import numpy as np
 import random
-from itertools import product
+from itertools import product, groupby
 
 from resources.vaccine_supply import ConstantVaccineSupply, VaccineSupply
 
@@ -242,6 +243,60 @@ class ActionWrapper(object):
         #
         return new_counts, overflow
 
+    def export_csv(self, file_path):
+        """Export the arms from the action wrapper as a CVS file"""
+        age_groups = [g.name for g in stride.AllAgeGroups]
+        fields = ["Arm", *age_groups]
+        with open(file_path, mode="w") as file:
+            writer = csv.writer(file)
+            writer.writerow(fields)
+            for arm in range(self.num_actions):
+                row = [arm, *self.get_vaccine_names(arm)]
+                writer.writerow(row)
+
+    def group_actions_v_type(self):
+        """Group actions into smaller groups which have similar vaccine strategies"""
+        groups_per_type = []
+
+        action_numbers = [(arm, self._nums(self._all_actions[arm])) for arm in range(self.num_actions)]
+        action_numbers = sorted(action_numbers, key=lambda an: an[1])
+        groups = groupby(action_numbers, key=lambda an: an[1])
+
+        for n, g in enumerate(groups):
+            # print("group", n)
+            count, group = g
+            groups_per_type.append(list(group))
+            # print(list(group))
+        return groups_per_type
+
+    @staticmethod
+    def _nums(action):
+        nums = [0 for v_type in stride.AllVaccineTypes]
+        for g in action:
+            nums[g] += 1
+        return nums
+
+    def group_actions_age(self):
+        """Group actions into smaller groups which vaccinate the same groups"""
+        groups_per_type = []
+
+        action_numbers = [(arm, self._nums2(self._all_actions[arm])) for arm in range(self.num_actions)]
+        action_numbers = sorted(action_numbers, key=lambda an: an[1])
+        groups = groupby(action_numbers, key=lambda an: an[1])
+
+        for n, g in enumerate(groups):
+            count, group = g
+            groups_per_type.append(list(group))
+        return groups_per_type
+
+    @staticmethod
+    def _nums2(action):
+        nums = ["0" for age in stride.AllAgeGroups]
+        for i, v in enumerate(action):
+            if v != stride.VaccineType.noVaccine:
+                nums[i] = "1"
+        return "".join(nums)
+
 
 class NoWasteActionWrapper(ActionWrapper):
     """Action wrapper for not wasting any vaccine types.
@@ -265,19 +320,12 @@ class NoWasteActionWrapper(ActionWrapper):
         return all(found.values())
 
 
-def print_arm(arm):
+def print_arm(aw, arm):
     """Print the arm as the vaccine types per age group."""
-    return ActionWrapper().get_pretty_raw_action(arm)
+    return aw.get_pretty_raw_action(arm)
 
 
-def latex_table_arms(arms):
+def latex_table_arms(aw, arms):
     """Print the rows of a LaTeX table to display the underlying arms' allocations."""
     for a in arms:
         print(f"{a} & " + " & ".join(aw.get_vaccine_names(a)), "\\\\\\hline")
-
-
-if __name__ == '__main__':
-    aw = ActionWrapper()
-    print(aw.num_actions)
-    aw = NoWasteActionWrapper()
-    print(aw.num_actions)

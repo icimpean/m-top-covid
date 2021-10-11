@@ -1,3 +1,4 @@
+import matplotlib
 import matplotlib.pyplot as plt
 
 
@@ -9,6 +10,16 @@ class Visualisation(object):
         self._max_bars = 15
         self._centering_y = 0.001
         self._default_color = "blue"
+
+        matplotlib.rcParams.update({
+            'text.usetex': False,
+            # Use the Computer modern font
+            # 'font.family': 'serif',
+            # 'font.serif': 'cmr10',
+            # 'mathtext.fontset': 'cm',
+            # Use ASCII minus
+            'axes.unicode_minus': False
+        })
 
     @staticmethod
     def _plot_text(title, x_label, y_label, legend=None, x_ticks=None, y_ticks=None):
@@ -63,3 +74,7 @@ class Visualisation(object):
         if show:
             plt.show()
         plt.close()
+
+    @staticmethod
+    def mean_line(x, p=None, **kwargs):
+        plt.axvline(x, color=p[-1].get_color(), ls="--", **kwargs)

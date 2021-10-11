@@ -3,6 +3,7 @@ import pylibstride as stride
 
 import csv
 import datetime
+import random
 import urllib.request as request
 
 
@@ -81,18 +82,18 @@ class ObservedVaccineSupply(VaccineSupply):
     doses_administered_per_vaccine_url = "https://covid-vaccinatie.be/api/v1/administered-by-vaccine-type.csv"
     doses_delivered_url = "https://covid-vaccinatie.be/api/v1/delivered.csv"
 
-    def __init__(self, use_administered, starting_date="", population_size=11000000,
-                 data_directory=None):
-        self.use_administered = use_administered
+    def __init__(self, starting_date="2021-01-01", days=181, population_size=11000000,
+                 data_directory=None, seed=0):
         self.starting_date = starting_date
         self.population_size = population_size
+        random.seed(seed)
         #
         self._last_update = None
         self._vaccine_counts = []
-        if use_administered:
-            self.load_administered(starting_date)
-        else:
-            self.load_delivered(starting_date)
+        self.load_delivered(starting_date, days)
+
+        # TODO: remove
+        self.counts = self._vaccine_counts
 
     def get_last_updated(self):  # TODO: only if outdated, retrieve new data
         """Check when the last update happened"""
@@ -115,131 +116,80 @@ class ObservedVaccineSupply(VaccineSupply):
                     one_day[v_type] = round(one_day[v_type] * pop_size / self.population_size)
         return available_vaccines
 
-    def load_administered(self, starting_date="2021-01-05"):
-        """Load data from the administered vaccines.
-
-        Args:
-            starting_date: The starting date from where to gather data.
-
-        Returns:
-            None.
-        """
-        stream = request.urlopen(self.doses_administered_per_vaccine_url)
-        data = stream.read().decode('utf-8').split("\n")
-        reader = csv.reader(data)
-
-        available_vaccines = []
-        current_date = None
-        current_available = {v_type: 0 for v_type in self._v_types}
-
-        # First row is a header ['date', 'region', 'type', 'first_dose', 'second_dose']
-        skip_header = True
-        for row in reader:
-            # Skip the header
-            if skip_header:
-                skip_header = False
-                continue
-            # Skip empty rows
-            elif len(row) == 0:
-                continue
-            # Skip all entries with a date smaller than the starting date
-            elif row[0] < starting_date:
-                continue
-
-            # Check if the date still matches up with the current one
-            if current_date != row[0] and current_date is not None:
-                available_vaccines.append(current_available)
-                current_available = {v_type: 0 for v_type in self._v_types}
-            current_date = row[0]
-
-            # Extract the vaccine type and counts if a vaccine name is provided
-            if row[2] != "":
-                v_type = self._get_vaccine_type(row[2])
-                # Second dose considered as first dose => 1 extra person getting vaccinated that day
-                count = int(row[3]) + int(row[4])
-                current_available[v_type] += count
-
-        self._vaccine_counts = available_vaccines
-
-    def load_delivered(self, starting_date="2020-12-28"):
+    def load_delivered(self, starting_date, days):
         """Load data from the delivered vaccines.
 
         Args:
-            starting_date: The starting date from where to gather data.
+            starting_date: The starting date of the simulations.
+            days: The number of days the simulation runs for.
 
         Returns:
             None.
         """
-        stream = request.urlopen(self.doses_delivered_url)
-        data = stream.read().decode('utf-8').split("\n")
-        reader = csv.reader(data)
+        start_date = Date.fromisoformat(starting_date)
+        end_date = start_date + datetime.timedelta(days=days)
+        counts_per_week = {}
 
-        first_dates = {v_type: None for v_type in self._v_types}
-        last_dates = {v_type: None for v_type in self._v_types}
-        counts_per_delivery = {v_type: [] for v_type in self._v_types}
+        with open("weekly_delivered.csv", mode="r") as file:
+            reader = csv.reader(file)
+            # First row is a header
+            # ['Week', 'Pfizer/BioNTech', 'Moderna', 'AstraZeneca/Oxford', 'Johnson&Johnson' ,'Total']
+            skip_header = True
+            for row in reader:
+                # Skip the header
+                if skip_header:
+                    skip_header = False
+                    continue
+                # Skip empty rows
+                elif len(row) == 0:
+                    continue
 
-        # First row is a header ['date', 'amount', 'manufacturer']
-        skip_header = True
-        for row in reader:
-            # Skip the header
-            if skip_header:
-                skip_header = False
-                continue
-            # Skip empty rows
-            elif len(row) == 0:
-                continue
-            # Skip all entries with a date smaller than the starting date
-            elif row[0] < starting_date:
-                continue
+                # Get the week from the row
+                week_date = Date.fromisoformat(row[0])
+                # Skip all entries longer than a week before the starting date
+                if (start_date - week_date).days >= 7:
+                    # print(f"Skipping {week_date}, is more than a week before {start_date}")
+                    continue
+                # Skip all deliveries after simulation ends
+                if week_date > end_date:
+                    break
 
-            # Extract the vaccine type
-            v_type = self._get_vaccine_type(row[2])
-            date = datetime.date.fromisoformat(row[0])
-            count = int(row[1])
+                # Extract vaccine counts
+                count_mRNA = sum([int(c) for c in row[1:3]])
+                count_adeno = sum([int(c) for c in row[3:5]])
+                # Divide counts over the week
+                count_mRNA = self._divide(count_mRNA)
+                count_adeno = self._divide(count_adeno)
 
-            # Keep track of the first and last day, per vaccine type
-            if first_dates[v_type] is None:
-                first_dates[v_type] = date
-            if last_dates[v_type] is None or last_dates[v_type] < date:
-                last_dates[v_type] = date
+                counts_per_week[week_date] = {
+                    stride.VaccineType.mRNA: count_mRNA,
+                    stride.VaccineType.adeno: count_adeno,
+                }
 
-            # Update counts for the vaccine type
-            if len(counts_per_delivery[v_type]) != 0 and counts_per_delivery[v_type][-1][0] == date:
-                counts_per_delivery[v_type][-1][1] += count
-            else:
-                counts_per_delivery[v_type].append([date, count])
-
-        # Supplies must start from first date: not supplied vaccines have count 0
-        supplies = {v_type: [] for v_type in self._v_types}
-        first_date = min(first_dates.values())
-        last_date = max(last_dates.values())
-        for v_type, date_counts in counts_per_delivery.items():
-            # Supply counts must start from the first date, even if it doesn't match up
-            first = date_counts[0][0]
-            # Supply doesn't start on the first available date: empty
-            if first_date < first:
-                diff = (first - first_date).days
-                for _ in range(diff):
-                    supplies[v_type].append(0)
-
-            # The current counts last until the next date
-            for i in range(len(date_counts)-1):
-                current_counts = date_counts[i]
-                next_counts = date_counts[i + 1]
-                diff = (next_counts[0] - current_counts[0]).days
-                counts = self.divide(current_counts[1], diff)
-                supplies[v_type].extend(counts)
-
-            # The last count lasts for a week more than the last delivery
-            last_diff = (last_date - date_counts[-1][0]).days + 7
-            counts = self.divide(date_counts[-1][1], last_diff)
-            supplies[v_type].extend(counts)
-
-        # Store the counts grouped per day
         self._vaccine_counts = []
-        for v_counts in zip(*supplies.values()):
-            available_vaccines = {v_type: v_count for v_type, v_count in zip(self._v_types, v_counts)}
-            self._vaccine_counts.append(available_vaccines)
+        for week_date, counts in counts_per_week.items():
+            # print("Weekdate", week_date)
+            for weekday in range(7):
+                date = week_date + datetime.timedelta(days=weekday)
+                # Skip dates before/after the start/end dates
+                if start_date > date:
+                    # print("day", date, "before", start_date)
+                    continue
+                elif date > end_date:
+                    # print("day", date, "later than end", end_date)
+                    break
+                week_counts = counts_per_week[week_date]
+                v_counts = {v_type: c[weekday] for v_type, c in week_counts.items()}
+                self._vaccine_counts.append(v_counts)
+
+    @staticmethod
+    def _divide(count):
+        q, r = divmod(count, 7)
+        new_counts = [q] * 7
+        for i in range(r):
+            new_counts[i] += 1
+        random.shuffle(new_counts)
+        return new_counts
 
     @staticmethod
     def _get_vaccine_type(name):
@@ -255,10 +205,14 @@ class ObservedVaccineSupply(VaccineSupply):
         else:
             raise RuntimeError(f"Unknown vaccine name: {name}")
 
-    @staticmethod
-    def divide(count, divisor):
-        d, m = divmod(count, divisor)
-        new_counts = [d for _ in range(divisor)]
-        for i in range(m):
-            new_counts[i] += 1
-        return new_counts
+
+class Date(datetime.date):
+    def isoweek(self):
+        return self.isocalendar()[1]
+
+
+if __name__ == '__main__':
+    vs = ObservedVaccineSupply(starting_date="2021-01-01", days=120, seed=0)
+
+    for day, c in enumerate(vs.counts):
+        print(f"day {day}: {c}")

@@ -26,13 +26,14 @@ class BanditVisualisation(Visualisation):
     def load_file(self, bandit_file, requested_arms=None, sort=True):
         self.load_files([bandit_file], requested_arms, sort)
 
-    def load_files(self, bandit_files, requested_arms=None, sort=True):
+    def load_files(self, bandit_files, requested_arms=None, sort=True, combine_episodes=True):
         """Combine multiple bandit file results"""
         rewards = {}
         episodes = {}
         arms = set()
         logger = BanditLogger()
         entry_fields = logger.entry_fields
+        last_episode = 0
 
         for bandit_file in bandit_files:
             with open(bandit_file, "r") as file:
@@ -47,6 +48,9 @@ class BanditVisualisation(Visualisation):
                     arm = int(entry[logger.arm])
                     reward = float(entry[logger.reward])
                     episode = int(entry[logger.episode])
+                    # Update the episode number if merging multiple files
+                    if combine_episodes:
+                        episode += last_episode
 
                     arms.add(arm)
                     if rewards.get(arm) is None:
@@ -57,6 +61,7 @@ class BanditVisualisation(Visualisation):
                         episodes[arm] = [episode]
                     else:
                         episodes[arm].append(episode)
+            last_episode = episode + 1
 
         if sort:
             arms = sorted(arms)
@@ -184,24 +189,29 @@ class BanditVisualisation(Visualisation):
         alpha = 0.4 if plot_average else 1.0
         colors = ["blue", "red", "green", "black", "orange", "purple", "pink", "yellow", "grey"]
 
-        for idx, n in enumerate(names):
-            # Average for arm
-            average = []
-            # For each episode
-            for episode in self.episodes_per_arm[arm]:
-                stride_csv_file = Path(stride_csv_directory) / str(episode) / file_names[idx]
-                try:
-                    y_values, min_reward, max_reward = self.stride_vis.load_file(stride_csv_file)
-                    average.append(y_values)
-                    plt.plot(range(len(y_values)), y_values, lw=lw, color=colors[idx], alpha=alpha,
-                             label=None if plot_average else n)
-                except FileNotFoundError:
-                    continue
-            # Plot the average
-            if plot_average:
+        p = Path(save_file).parent / f"statistics{'_cumul' if plot_cumulative else ''}.txt"
+        with open(p, mode="w") as file:
+            for idx, n in enumerate(names):
+                # Average for arm
+                average = []
+                # For each episode
+                for episode in self.episodes_per_arm[arm]:
+                    stride_csv_file = Path(stride_csv_directory) / str(episode) / file_names[idx]
+                    try:
+                        y_values, min_reward, max_reward = self.stride_vis.load_file(stride_csv_file)
+                        average.append(y_values)
+                        plt.plot(range(len(y_values)), y_values, lw=lw, color=colors[idx], alpha=alpha,
+                                 label=None if plot_average else n)
+                    except FileNotFoundError:
+                        print(f"FileNotFoundError for arm {arm}: {stride_csv_file}")
+                        continue
+                # Plot the average
                 average = np.mean(average, axis=0)
                 print(f"Average max {n}: {np.max(average)}")
-                plt.plot(range(len(average)), average, lw=lw * 3, color=colors[idx], label=n)
+                file.write(f"Average max {n}: {np.max(average)}\n")
+                if plot_average:
+                    plt.plot(range(len(average)), average, lw=lw * 3, color=colors[idx], label=n)
+
         plt.legend()
         # Show, save and close the plot
         self.show_save_close(show, save_file)
@@ -242,7 +252,9 @@ class BanditVisualisation(Visualisation):
 
         return sorted_top, min_top, max_top
 
-    def plot_violin(self, requested_arms=None, sorted_arms=False, best=True, show=True, save_file=None):
+    def plot_violin(self, requested_arms=None, sorted_arms=False, best=True,
+                    new_title=None,
+                    show=True, save_file=None):
         """Create a violin plot for the requested arms."""
         arms = self.arms if requested_arms is None else requested_arms
         rewards, min_reward, max_reward = self.rewards_per_arm
@@ -255,8 +267,10 @@ class BanditVisualisation(Visualisation):
             arms = [a for a, r in rewards]
         x_ticks = (range(len(arms)), arms)
 
+        if True: #len(arms) > 10:  # TODO
+            plt.rcParams["figure.figsize"] = (len(arms) * 0.5, plt.rcParamsDefault["figure.figsize"][1])
         # Set up the plot
-        self._plot_text(title=f"Density of outcome distributions",
+        self._plot_text(title=f"Density of outcome distributions" if new_title is None else new_title,
                         x_label="Arm", y_label="reward", legend=None, x_ticks=x_ticks)
         # Center the graph around the y_values to plot
         plt.ylim(self._center_y_lim(min_reward, max_reward))
@@ -276,6 +290,7 @@ class BanditVisualisation(Visualisation):
 
         # Show, save and close the plot
         self.show_save_close(show, save_file)
+        plt.rcParams["figure.figsize"] = plt.rcParamsDefault["figure.figsize"]
 
     def plot_mean_violin(self, bandit, requested_arms=None, sorted_arms=False, best=True, show=True, save_file=None):
         """Create a violin plot for the requested arms."""
@@ -319,4 +334,20 @@ class BanditVisualisation(Visualisation):
         #     plt.violinplot(rewards[arm], [idx])
 
         # Show, save and close the plot
+        self.show_save_close(show, save_file)
+
+    def violin_plot(self, requested_arms, show=True, save_file=None):
+        """Draw a violin plot for the given arms"""
+        arms = self.arms if requested_arms is None else requested_arms
+        rewards, min_reward, max_reward = self.rewards_per_arm
+
+        x_ticks = (range(len(arms)), arms)
+
+        # Set up the plot
+        self._plot_text(title=f"Density of outcome distributions",
+                        x_label="Arm", y_label="reward", legend=None, x_ticks=x_ticks)
+
+        rewards = [rewards[arm] for arm in arms]
+        plt.violinplot(rewards, x_ticks[0], showmeans=True)
+
         self.show_save_close(show, save_file)

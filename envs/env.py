@@ -151,6 +151,7 @@ class GaussianMixtureEnv(Env):
             print(f"Action {arm}:")
             for k, (pi, mean, std_dev) in enumerate(zip(self.pi[arm], self.means[arm], self.std_dev[arm])):
                 print(f"\t[mixture {k}] pi: {pi}, mean: {mean}, std. dev. {std_dev}")
+            print(f"\tmean: {sum(self.pi[arm] * self.means[arm])}")
         print(stripes)
 
 

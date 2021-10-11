@@ -12,7 +12,7 @@ from envs.stride_env.stride_env import StrideMDPEnv, Reward
 from args import parser as general_parser
 from bandits.random_bandit import RandomBandit
 from sampling.random import RandomSampling
-from resources.vaccine_supply import ConstantVaccineSupply
+from resources.vaccine_supply import ConstantVaccineSupply, ObservedVaccineSupply
 
 
 # Play a single arm multiple times
@@ -33,12 +33,16 @@ def run_arm(parser_args):
     step_size = parser_args.episode_duration
 
     # The vaccine supply
-    vaccine_supply = ConstantVaccineSupply(  # TODO: add in XML config
-        vaccine_type_counts={
-            stride.VaccineType.mRNA: 60000,
-            stride.VaccineType.adeno: 40000,
-        }, population_size=11000000
-    )
+    # vaccine_supply = ConstantVaccineSupply(  # TODO: add in XML config
+    #     vaccine_type_counts={
+    #         stride.VaccineType.mRNA: 60000,
+    #         stride.VaccineType.adeno: 40000,
+    #     }, population_size=11000000
+    # )
+    # Weekly deliveries, based on https://covid-vaccinatie.be/en
+    vaccine_supply = ObservedVaccineSupply(starting_date="2021-01-01", days=parser_args.episode_duration,
+                                           population_size=11000000, seed=parser_args.seed)
+
     # The type of environment
     env = StrideMDPEnv(states=False, seed=parser_args.seed, episode_duration=parser_args.episode_duration,
                        step_size=step_size,
