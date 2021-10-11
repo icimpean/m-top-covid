@@ -130,7 +130,15 @@ class ObservedVaccineSupply(VaccineSupply):
         end_date = start_date + datetime.timedelta(days=days)
         counts_per_week = {}
 
-        with open("weekly_delivered.csv", mode="r") as file:
+        import os
+        path = "weekly_delivered.csv"
+        print(f"1path {path}:\n\t{os.path.isfile(path)}")
+        path = f"./resources/{path}"
+        print(f"2path {path}:\n\t{os.path.isfile(path)}")
+        path = f".{path}"
+        print(f"3path {path}:\n\t{os.path.isfile(path)}")
+
+        with open("../resources/weekly_delivered.csv", mode="r") as file:
             reader = csv.reader(file)
             # First row is a header
             # ['Week', 'Pfizer/BioNTech', 'Moderna', 'AstraZeneca/Oxford', 'Johnson&Johnson' ,'Total']
