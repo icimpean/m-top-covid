@@ -19,6 +19,9 @@ class BFTS(Sampling):
         super(BFTS, self).__init__(posteriors, seed)
         #
         self.m = top_m
+        self.has_ranking = True
+        self.sample_ordering = None
+        self.current_ranking = None
 
     @staticmethod
     def new(top_m):
@@ -37,7 +40,9 @@ class BFTS(Sampling):
         # Choose an arm from the boundary (top_m boundary)
         arm_i = order[self.m - 1 + np.random.choice([0, 1])]
 
-        # print(f"=== TOP_M arms at timestep {t}: {self.top_m(t)} ===")
+        self.sample_ordering = order
+        self.current_ranking = self.top_m(t)
+        print(f"=== TOP_M arms at timestep {t}: {self.current_ranking} ===")
 
         return arm_i
 

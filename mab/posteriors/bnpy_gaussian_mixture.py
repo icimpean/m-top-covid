@@ -25,7 +25,7 @@ class BNPYGaussianMixturePosterior(Posterior):  # TODO
         # path = "../../rl-tmp/"
         # path = "/Users/alexandracimpean/Documents/VUB/PhD/COVID19/Code/rl-tmp/"
         path = log_dir
-        self._output_path = Path(f"{path}/rl-tmp/{num}/")#.absolute()
+        self._output_path = Path(f"{path}/rl-tmp/posterior_{num}/")#.absolute()
 
         self._nLap = max_iter  # TODO
         self._sF = 0.1
@@ -35,8 +35,20 @@ class BNPYGaussianMixturePosterior(Posterior):  # TODO
 
         # TODO: tol == convergeThr?
 
-        self._model = None
-        self.info = None
+        # self._model = None
+        # self.info = None
+        self._is_initialised = False
+
+        # force update with no new data to sample uninitialised posteriors
+        _init_data = bnpy.data.XData(np.random.default_rng(seed=seed).random(size=(self._K, 1)))
+        self._model, self.info = bnpy.run(_init_data, self._model_type, self._allocModelName, self._obsModelName,
+                                          doWriteStdOut=False, doSaveToDisk=True, taskID=-1,
+                                          output_path=self._output_path,
+                                          nLap=self._nLap, sF=self._sF, ECovMat=self._ECovMat, K=2,
+                                          initname=self._initname,
+                                          # moves='birth,merge,shuffle',
+                                          # m_startLap=3, b_startLap=2, b_Kfresh=2
+                                          )
 
     @staticmethod
     def new(seed, k, tol, max_iter, num=0, log_dir="/Users/alexandracimpean/Documents/VUB/PhD/COVID19/Code/rl-tmp/"):
@@ -68,16 +80,22 @@ class BNPYGaussianMixturePosterior(Posterior):  # TODO
 
     def get_means(self):
         """Extract posterior means from bnpy model"""
-        return self._model.obsModel.Post.m
+        if self._is_initialised:
+            return self._model.obsModel.Post.m
+        else:
+            return self._model.obsModel.Prior.m
 
     def get_cov(self, k=None):
         """Extract posterior covariance matrix from bnpy model"""
-        if k is None:
-            B = self._model.obsModel.Post.B
-            nu = self._model.obsModel.Post.nu
-            covar = B / (nu - self._model.obsModel.D - 1)
-        else:
-            covar = self._model.obsModel.get_covar_mat_for_comp(k)
+        P = self._model.obsModel.Post if self._is_initialised else self._model.obsModel.Prior
+
+        B = P.B
+        nu = P.nu
+        if k is not None:
+            B = B[k]
+            nu = nu[k]
+        covar = B / (nu - self._model.obsModel.D - 1)
+
         return covar
 
     def get_weights(self):
@@ -116,7 +134,7 @@ class BNPYGaussianMixturePosterior(Posterior):  # TODO
             samples.append(m_sample)
 
         # Choose a mean according to the weights
-        sample = random.choices(samples, weights, k=1)[0]
+        sample = random.choices(samples, weights, k=1)[0][0]  # TODO: abstract?
         return sample
 
     def save(self, path):  # TODO

@@ -25,6 +25,7 @@ class Reward(Enum):
     # Cumulative counts
     total_infected = auto()
     total_hospitalised = auto()
+    total_at_risk = auto()
 
 
 # The mapping of reward types and the corresponding method call
@@ -37,6 +38,7 @@ _reward_mapping = {
     #
     Reward.total_infected: lambda mdp: mdp.GetTotalInfected(),
     Reward.total_hospitalised: lambda mdp: mdp.GetTotalHospitalised(),
+    Reward.total_at_risk: lambda mdp: mdp.GetTotalInfected(),  # TODO: abstract numerator and denominator in reward specification
 }
 
 
@@ -106,6 +108,7 @@ class StrideMDPEnv(Env):
         self.reward_type = reward_type
         self._population_size = 0
         self._age_groups_sizes = {}
+        self._at_risk = 0
 
         # The internal state and timestep
         self.states = states
@@ -135,6 +138,7 @@ class StrideMDPEnv(Env):
                          seed, output_dir, output_prefix)
         self._population_size = self._mdp.GetPopulationSize()
         self._age_groups_sizes = self._mdp.GetAgeGroupSizes()
+        self._at_risk = self._mdp.GetAtRisk()
         return None
 
     def close_x(self):
@@ -168,9 +172,10 @@ class StrideMDPEnv(Env):
             self._mdp.SimulateDay()
             reward = self.get_reward()
 
-            # print(f"infected: {self._mdp.CountInfectedCases()}, exposed: {self._mdp.CountExposedCases()}, "
-            #       f"infectious: {self._mdp.CountInfectiousCases()}, symptomatic: {self._mdp.CountSymptomaticCases()}, "
-            #       f"hospitalised: {self._mdp.CountHospitalisedCases()}, total hosp.: {self._mdp.GetTotalHospitalised()}")
+            print(f"infected: {self._mdp.CountInfectedCases()}, exposed: {self._mdp.CountExposedCases()}, "
+                  f"infectious: {self._mdp.CountInfectiousCases()}, symptomatic: {self._mdp.CountSymptomaticCases()}, "
+                  f"hospitalised: {self._mdp.CountHospitalisedCases()}, total hosp.: {self._mdp.GetTotalHospitalised()}",
+                  f"at risk at start: {self._at_risk}")
             print(f"Unvaccinated age groups:", self._mdp.GetAgeGroupSizes())
             print(f"Vaccinated age groups:", self._mdp.GetVaccinatedAgeGroups())
 
@@ -206,10 +211,12 @@ class StrideMDPEnv(Env):
         return available_vaccines, group, v_type
 
     def _transform_reward(self, infected):
+        # Consider entire population or only susceptible/not immune
+        size = self._at_risk if self.reward is Reward.total_at_risk else self._population_size
         if self.reward_type == "neg":
-            return self._population_size - infected
+            return size - infected
         elif self.reward_type == "norm":
-            return (self._population_size - infected) / self._population_size
+            return (size - infected) / size
         else:
             return infected
 

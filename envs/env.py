@@ -126,6 +126,7 @@ class GaussianMixtureEnv(Env):
 
     def _sample_reward(self, action):
         # Choose a mixture for the given action, given their probabilities
+        print("action:", action)
         k = self.rng.multinomial(1, pvals=self.pi[action]).argmax()
         # Draw a sample from the gaussian of the given mixture
         mean = self.means[action, k]

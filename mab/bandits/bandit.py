@@ -6,6 +6,7 @@ from pathlib import Path
 
 from envs.stride_env.stride_env import StrideMDPEnv
 from loggers.bandit_logger import BanditLogger
+from loggers.bfts_logger import BFTSLogger
 from mab.sampling import Sampling
 
 
@@ -28,8 +29,10 @@ class Bandit(object):
         self.seed = seed
         self.save_interval = save_interval
         self.logger = BanditLogger()
+        self.sample_logger = BFTSLogger()
         self._log_dir = Path(log_dir)
         self.log_file = self._log_dir / "bandit_log.csv"
+        self.sample_log_file = self._log_dir / "sampling_log.csv"
         os.makedirs(self._log_dir, exist_ok=True)
 
     def best_arm(self, t):
@@ -49,6 +52,7 @@ class Bandit(object):
             None.
         """
         self.logger.create_file(self.log_file)
+        self.sample_logger.create_file(self.sample_log_file)
 
         t = 0
         # Play each arm initialise_arms times
@@ -93,6 +97,14 @@ class Bandit(object):
         # Log the data
         entry = self.logger.create_entry(t, arm, reward, time_end - time_start)
         self.logger.write_data(entry, self.log_file)
+
+        if self.sampling.has_ranking:
+            ranking = self.sampling.current_ranking
+        else:
+            ranking = None
+        entry = self.sample_logger.create_entry(t, arm, ranking)
+        self.sample_logger.write_data(entry, self.sample_log_file)
+
         # Save the bandit if necessary
         if t % self.save_interval == 0:
             self.save(t)
