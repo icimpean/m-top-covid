@@ -39,21 +39,21 @@ def run_arm(parser_args):
     #     }, population_size=11000000
     # )
     # Weekly deliveries, based on https://covid-vaccinatie.be/en
-    # vaccine_supply = ObservedVaccineSupply(starting_date="2021-01-01", days=parser_args.episode_duration,
-    #                                        population_size=11000000, seed=parser_args.seed)
+    vaccine_supply = ObservedVaccineSupply(starting_date="2021-01-01", days=parser_args.episode_duration,
+                                           population_size=11000000, seed=parser_args.seed)
 
     # The type of environment
-    # env = StrideMDPEnv(states=False, seed=parser_args.seed, episode_duration=parser_args.episode_duration,
-    #                    step_size=step_size,
-    #                    config_file=parser_args.config, available_vaccines=vaccine_supply,
-    #                    reward=Reward.total_infected, reward_type='norm',  # TODO: add in XML config
-    #                    # TODO: add in XML config
-    #                    mRNA_properties=stride.LinearVaccineProperties("mRNA vaccine", 0.95, 0.95, 1.00, 42),
-    #                    adeno_properties=stride.LinearVaccineProperties("Adeno vaccine", 0.67, 0.67, 1.00, 42),
-    #                    action_wrapper=NoWasteActionWrapper
-    #                    )
-    from envs.env import TestGaussianMixtureEnv, Test2GaussianMixtureEnv
-    env = Test2GaussianMixtureEnv(seed=parser_args.seed)
+    env = StrideMDPEnv(states=False, seed=parser_args.seed, episode_duration=parser_args.episode_duration,
+                       step_size=step_size,
+                       config_file=parser_args.config, available_vaccines=vaccine_supply,
+                       reward=Reward.total_infected, reward_type='norm',  # TODO: add in XML config
+                       # TODO: add in XML config
+                       mRNA_properties=stride.LinearVaccineProperties("mRNA vaccine", 0.95, 0.95, 1.00, 42),
+                       adeno_properties=stride.LinearVaccineProperties("Adeno vaccine", 0.67, 0.67, 1.00, 42),
+                       action_wrapper=NoWasteActionWrapper
+                       )
+    # from envs.env import TestGaussianMixtureEnv, Test2GaussianMixtureEnv
+    # env = Test2GaussianMixtureEnv(seed=parser_args.seed)
 
     # The sampling method
     sampling_method = BFTS.new(top_m=3)  # TODO: abstract top_m to command line
