@@ -175,7 +175,7 @@ class StrideMDPEnv(Env):
             print(f"infected: {self._mdp.CountInfectedCases()}, exposed: {self._mdp.CountExposedCases()}, "
                   f"infectious: {self._mdp.CountInfectiousCases()}, symptomatic: {self._mdp.CountSymptomaticCases()}, "
                   f"hospitalised: {self._mdp.CountHospitalisedCases()}, total hosp.: {self._mdp.GetTotalHospitalised()}",
-                  f"at risk at start: {self._at_risk}")
+                  f"at risk at start: {self._at_risk}, (temp) reward: {self._transform_reward(reward)}")
             print(f"Unvaccinated age groups:", self._mdp.GetAgeGroupSizes())
             print(f"Vaccinated age groups:", self._mdp.GetVaccinatedAgeGroups())
 

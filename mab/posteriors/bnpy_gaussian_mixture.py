@@ -8,7 +8,7 @@ import bnpy
 from mab.posteriors import Posterior, SinglePosteriors
 
 
-class BNPYGaussianMixturePosterior(Posterior):  # TODO
+class BNPYGaussianMixturePosterior(Posterior):
     """A gaussian mixture posterior of a bandit's arms, based on the BNPy project:
 
     github: https://github.com/bnpy/bnpy
@@ -25,7 +25,7 @@ class BNPYGaussianMixturePosterior(Posterior):  # TODO
         # path = "../../rl-tmp/"
         # path = "/Users/alexandracimpean/Documents/VUB/PhD/COVID19/Code/rl-tmp/"
         path = log_dir
-        self._output_path = Path(f"{path}/rl-tmp/posterior_{num}/")#.absolute()
+        self._output_path = Path(f"{path}/rl-tmp/posterior_{num}/").absolute()
 
         self._nLap = max_iter  # TODO
         self._sF = 0.1
@@ -121,7 +121,7 @@ class BNPYGaussianMixturePosterior(Posterior):  # TODO
         for m in range(self._model.allocModel.K):
             # Sample the mixture's mean
             mu = self.get_means()
-            print("mu:", mu)
+            # print("mu:", mu)
             # The precision of each components on the mean distribution (Gaussian).
             mu_precision = self.mean_precisions()[m]
             mu_variance = 1 / mu_precision
