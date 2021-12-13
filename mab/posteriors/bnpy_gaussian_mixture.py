@@ -2,8 +2,8 @@ import random
 from pathlib import Path
 
 import numpy as np
-
 import bnpy
+import pickle
 
 from mab.posteriors import Posterior, SinglePosteriors
 
@@ -21,34 +21,25 @@ class BNPYGaussianMixturePosterior(Posterior):
         # The internal mixture distribution
         self._model_type = "DPMixtureModel"
         self._allocModelName = "Gauss"
-        self._obsModelName = "memoVB"  # "VB"
-        # path = "../../rl-tmp/"
-        # path = "/Users/alexandracimpean/Documents/VUB/PhD/COVID19/Code/rl-tmp/"
+        self._obsModelName = "memoVB"
         path = log_dir
-        self._output_path = Path(f"{path}/rl-tmp/posterior_{num}/").absolute()
+        # self._output_path = Path(f"{path}/rl-tmp/posterior_{num}/").absolute()
+        self._output_path = Path(f"{path}/Posteriors/posterior_{num}/").absolute()
 
-        self._nLap = max_iter  # TODO
+        self._nLap = max_iter
         self._sF = 0.1
         self._ECovMat = "eye"
         self._initname = 'randexamples'
         self._K = k
-
         # TODO: tol == convergeThr?
 
-        # self._model = None
-        # self.info = None
         self._is_initialised = False
-
         # force update with no new data to sample uninitialised posteriors
         _init_data = bnpy.data.XData(np.random.default_rng(seed=seed).random(size=(self._K, 1)))
         self._model, self.info = bnpy.run(_init_data, self._model_type, self._allocModelName, self._obsModelName,
                                           doWriteStdOut=False, doSaveToDisk=True, taskID=-1,
-                                          output_path=self._output_path,
-                                          nLap=self._nLap, sF=self._sF, ECovMat=self._ECovMat, K=2,
-                                          initname=self._initname,
-                                          # moves='birth,merge,shuffle',
-                                          # m_startLap=3, b_startLap=2, b_Kfresh=2
-                                          )
+                                          output_path=self._output_path, initname=self._initname,
+                                          nLap=self._nLap, sF=self._sF, ECovMat=self._ECovMat, K=2)
 
     @staticmethod
     def new(seed, k, tol, max_iter, num=0, log_dir="/Users/alexandracimpean/Documents/VUB/PhD/COVID19/Code/rl-tmp/"):
@@ -60,7 +51,6 @@ class BNPYGaussianMixturePosterior(Posterior):
         # Data contains a single feature (reward)
         if X.ndim == 1:
             X = X.reshape(-1, 1)
-            # print("new X:", X)
         dataset = bnpy.data.XData(X)
         # Run the algorithm
         self._model, self.info = self._update(dataset, t)
@@ -88,14 +78,12 @@ class BNPYGaussianMixturePosterior(Posterior):
     def get_cov(self, k=None):
         """Extract posterior covariance matrix from bnpy model"""
         P = self._model.obsModel.Post if self._is_initialised else self._model.obsModel.Prior
-
         B = P.B
         nu = P.nu
         if k is not None:
             B = B[k]
             nu = nu[k]
         covar = B / (nu - self._model.obsModel.D - 1)
-
         return covar
 
     def get_weights(self):
@@ -138,10 +126,20 @@ class BNPYGaussianMixturePosterior(Posterior):
         return sample
 
     def save(self, path):  # TODO
-        pass
+        model_path = path.with_suffix("posterior_model")
+        init_path = path.with_suffix("posterior_init")
+        with open(model_path, "wb") as file:
+            pickle.dump(self._model, file)
+        with open(init_path, "wb") as file:
+            pickle.dump(self._initname, file)
 
     def load(self, path):  # TODO
-        pass
+        model_path = path.with_suffix("posterior_model")
+        init_path = path.with_suffix("posterior_init")
+        with open(model_path, "rb") as file:
+            self._model = pickle.load(file)
+        with open(init_path, "rb") as file:
+            self._initname = pickle.load(file)
 
     def mixture_mean(self):
         """The mean of the gaussian mixture distribution."""
@@ -149,7 +147,7 @@ class BNPYGaussianMixturePosterior(Posterior):
         return mean
 
 
-class BNPYBGMPosteriors(SinglePosteriors):  # TODO
+class BNPYBGMPosteriors(SinglePosteriors):
     """A Bayesian Gaussian Mixture Posterior for a given number of bandit arms."""
 
     def __init__(self, nr_arms, seed=None, k=2, tol=0.001, max_iter=100, log_dir="./"):

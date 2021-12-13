@@ -35,6 +35,10 @@ class AT_LUCB(Sampling):
         self.pull_lowest = True
         self._t = 1
 
+        self.has_ranking = True
+        self.sample_ordering = None
+        self.current_ranking = None
+
     @staticmethod
     def new(top_m, sigma1=0.5, alpha=0.99, epsilon=0):
         """Workaround to add a given top_m arms to the sampling method"""
@@ -63,6 +67,11 @@ class AT_LUCB(Sampling):
         # Sample the arm
         arm = h_or_l(t, self.sigma(self.S[t - 1]))
         # print("l" if self.pull_lowest else "h", t, arm)
+
+        theta = self.posteriors.sample_all(t)
+        order = np.argsort(-np.array(theta))
+        self.sample_ordering = order
+        self.current_ranking = self.top_m(t)
 
         # Next time pull the opposite
         self.pull_lowest = not self.pull_lowest

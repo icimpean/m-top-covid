@@ -22,13 +22,15 @@ class BNPYBayesianGaussianMixtureBandit(Bandit):
     def save(self, t):
         """Save the bandit's posteriors"""
         # TODO
-        # path = Path(self._log_dir) / "Posteriors"
-        # path.mkdir(exist_ok=True)
-        # path /= f"t{t}-"
-        # self.sampling.posteriors.save(path)
+        path = Path(self._log_dir) / "Posteriors"
+        path.mkdir(exist_ok=True)
+        path /= f"t{t}-"
+        self.sampling.posteriors.save(path)
 
     def load(self, t):
         """Load the bandit's posteriors"""
+        # Playing from given checkpoint
+        self._from_checkpoint = True
         # TODO
-        # path = Path(self._log_dir) / "Posteriors" / f"t{t}-"
-        # self.sampling.posteriors.load(path)
+        path = Path(self._log_dir) / "Posteriors" / f"t{t}-"
+        self.sampling.posteriors.load(path)

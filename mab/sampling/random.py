@@ -11,7 +11,7 @@ class RandomSampling(Sampling):
         super(RandomSampling, self).__init__(posteriors, seed)
         # self.posteriors = posteriors
         self._nr_arms = len(posteriors)
-        self.rng = np.random.default_rng()
+        self.rng = np.random.default_rng(seed=seed)
 
     def best_arm(self, t):
         """Randomly sample an arm"""

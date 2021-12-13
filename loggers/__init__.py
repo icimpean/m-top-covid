@@ -14,11 +14,12 @@ class LogEntry(object):
         """Method to create an entry for the log."""
         raise NotImplementedError
 
-    def create_file(self, path):
+    def create_file(self, path, from_checkpoint=False):
         """Create the CSV file"""
-        with open(path, "w", newline="") as file_writer:
-            writer = csv.DictWriter(file_writer, fieldnames=self.entry_fields)
-            writer.writeheader()
+        if not from_checkpoint:
+            with open(path, "w", newline="") as file_writer:
+                writer = csv.DictWriter(file_writer, fieldnames=self.entry_fields)
+                writer.writeheader()
 
     def write_data(self, data, path):
         """Write a list of entries to a given file."""

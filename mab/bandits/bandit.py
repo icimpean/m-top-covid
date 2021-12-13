@@ -34,6 +34,7 @@ class Bandit(object):
         self.log_file = self._log_dir / "bandit_log.csv"
         self.sample_log_file = self._log_dir / "sampling_log.csv"
         os.makedirs(self._log_dir, exist_ok=True)
+        self._from_checkpoint = False
 
     def best_arm(self, t):
         """Select the best arm based on the current posteriors."""
@@ -51,8 +52,8 @@ class Bandit(object):
         Returns:
             None.
         """
-        self.logger.create_file(self.log_file)
-        self.sample_logger.create_file(self.sample_log_file)
+        self.logger.create_file(self.log_file, from_checkpoint=self._from_checkpoint)
+        self.sample_logger.create_file(self.sample_log_file, from_checkpoint=self._from_checkpoint)
 
         t = 0
         # Play each arm initialise_arms times
@@ -121,18 +122,10 @@ class Bandit(object):
         for arm in some_arms:
             self._play(t, lambda _: arm)
             t += 1
-
-        # TODO: remove
-        # self.env.close_x()
-        # import resource
-        # x = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        # print(f"End Resources: {x} bytes ({round(x / 1024, 2)} kB, {round(x / 1024 ** 2, 2)} MB, {round(x / 1024 ** 3, 2)} GB)")
-
-        #
         self.env.close()
 
     def play_arms(self, arms, callbacks=None):
-        self.logger.create_file(self.log_file)
+        self.logger.create_file(self.log_file, from_checkpoint=self._from_checkpoint)
 
         for t, arm in enumerate(arms):
             self._play(t, lambda _: arm)
@@ -140,14 +133,6 @@ class Bandit(object):
             if callbacks is not None:
                 for callback in callbacks:
                     callback(t, arm)
-
-        # TODO: remove
-        # self.env.close_x()
-        # import resource
-        # x = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        # print(
-        #     f"End Resources: {x} bytes ({round(x / 1024, 2)} kB, {round(x / 1024 ** 2, 2)} MB, {round(x / 1024 ** 3, 2)} GB)")
-        #
         self.env.close()
 
     def save(self, t):
