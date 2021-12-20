@@ -6,7 +6,7 @@ from pathlib import Path
 
 from envs.stride_env.stride_env import StrideMDPEnv
 from loggers.bandit_logger import BanditLogger
-from loggers.bfts_logger import BFTSLogger
+from loggers.top_m_logger import TopMLogger
 from mab.sampling import Sampling
 
 
@@ -29,39 +29,45 @@ class Bandit(object):
         self.seed = seed
         self.save_interval = save_interval
         self.logger = BanditLogger()
-        self.sample_logger = BFTSLogger()
+        self.sample_logger = TopMLogger()
         self._log_dir = Path(log_dir)
         self.log_file = self._log_dir / "bandit_log.csv"
         self.sample_log_file = self._log_dir / "sampling_log.csv"
         os.makedirs(self._log_dir, exist_ok=True)
         self._from_checkpoint = False
+        self._time_created = time.time()
 
     def best_arm(self, t):
         """Select the best arm based on the current posteriors."""
         arm = self.posteriors.sample_best_arm(t)
         return arm
 
-    def play_bandit(self, episodes, initialise_arms=0, stop_condition=lambda _: False):
+    def play_bandit(self, episodes, initialise_arms=0, timestep=0, stop_condition=lambda _: False,
+                    time_limit=None, limit_min=20*60):
         """Run the bandit for the given number of steps.
 
         Args:
             episodes: The number of (fixed length) episodes to let the bandit play.
             initialise_arms: The number of times to play each arm to initialise the posteriors at the start.
                 Defaults to 0 (no initialisation).
-
+            timestep: The timestep to start playing at. Useful when starting from a checkpoint.
+            time_limit: The limit in seconds the bandit can play for (account for time limit on cluster & save on time)
+            limit_min: The number of seconds minimum required to continue playing, else save and exit.
         Returns:
             None.
         """
         self.logger.create_file(self.log_file, from_checkpoint=self._from_checkpoint)
         self.sample_logger.create_file(self.sample_log_file, from_checkpoint=self._from_checkpoint)
 
-        t = 0
-        # Play each arm initialise_arms times
-        for _ in range(initialise_arms):
-            for arm in range(self.nr_arms):
-                self._play(t, lambda _: arm)
-                t += 1
-        start_t = self.nr_arms * initialise_arms
+        t = timestep
+        start_t = t
+        if not self._from_checkpoint:
+            # Play each arm initialise_arms times
+            for _ in range(initialise_arms):
+                for arm in range(self.nr_arms):
+                    self._play(t, lambda _: arm)
+                    t += 1
+            start_t = self.nr_arms * initialise_arms
 
         for t in range(start_t, episodes):
             self._play(t, self.sampling.sample_arm)
@@ -71,6 +77,15 @@ class Bandit(object):
                 logging.info(f"Stopped bandit early due to stopping condition at timestep {t}")
                 print(f"Stopped bandit early due to stopping condition at timestep {t}")
                 break
+
+            # Save in time if running on cluster
+            if time_limit is not None:
+                time_remaining = time_limit - (time.time() - self._time_created)
+                if time_remaining < limit_min:
+                    print(f"Stopped bandit early after timestep {t} due to time limit. "
+                          f"Less than {limit_min} seconds remaining ({time_remaining})")
+                    self.save("_time")
+                    break
 
     def _play(self, t, select_arm):
         """Play an arm selected by the given select_arm function"""
@@ -83,7 +98,7 @@ class Bandit(object):
         state = self.env.reset(seed=t, output_dir=str(self._log_dir), output_prefix=str(output_prefix))
 
         # Compute the posteriors of the bandit
-        self.posteriors.compute_posteriors(t)
+        self.sampling.compute_posteriors(t)
         # Select the arm with the given selection method
         arm = select_arm(t)
 
@@ -91,7 +106,7 @@ class Bandit(object):
         next_state, reward, done, info = self.env.step(arm)
         self._print_step(t, arm, reward)
         # Update the posteriors
-        self.posteriors.update(arm, reward, t)
+        self.sampling.update(arm, reward, t)
 
         time_end = time.time()
 
@@ -115,10 +130,11 @@ class Bandit(object):
         print(f"step {t}: Arm {arm}, reward {reward}")
 
     def test_bandit(self):
-        """A small testing case for stride bandit, playing one arm for 0 to 5 age groups vaccinated"""
-        self.logger.create_file(self.log_file)
+        """A small testing case for stride bandit"""
+        self.logger.create_file(self.log_file, from_checkpoint=self._from_checkpoint)
+        self.sample_logger.create_file(self.sample_log_file, from_checkpoint=self._from_checkpoint)
         t = 0
-        some_arms = [0, 1, 11, 23, 123, 230] * 2
+        some_arms = [0, 1, 5, 10, 20, 21, 25, 30, 45, 50, 51, 55, 56, 67, 68, 100, 101, 120, 151, 160]
         for arm in some_arms:
             self._play(t, lambda _: arm)
             t += 1
@@ -126,6 +142,7 @@ class Bandit(object):
 
     def play_arms(self, arms, callbacks=None):
         self.logger.create_file(self.log_file, from_checkpoint=self._from_checkpoint)
+        self.sample_logger.create_file(self.sample_log_file, from_checkpoint=self._from_checkpoint)
 
         for t, arm in enumerate(arms):
             self._play(t, lambda _: arm)

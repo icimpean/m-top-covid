@@ -1,3 +1,6 @@
+import pickle
+from pathlib import Path
+
 import numpy as np
 
 from mab.posteriors import Posteriors
@@ -32,10 +35,6 @@ class BFTS(Sampling):
         """Sample an arm based on the sampling method."""
         # Sample all arms and order them
         theta = self.posteriors.sample_all(t)
-
-        # TODO: remove
-        print(f"Arm samples: {theta}")
-
         order = np.argsort(-np.array(theta))
         # Choose an arm from the boundary (top_m boundary)
         arm_i = order[self.m - 1 + np.random.choice([0, 1])]
@@ -53,3 +52,15 @@ class BFTS(Sampling):
         if isinstance(means, list):
             means = np.array(means)
         return np.argsort(-means)[0:self.m]
+
+    def save(self, path: Path):
+        """Save the sampling method to the given file path"""
+        with open(path, mode="wb") as file:
+            data = [self.seed, self.rng, self.m, self.has_ranking, self.sample_ordering, self.current_ranking]
+            pickle.dump(data, file)
+
+    def load(self, path: Path):
+        """Load the sampling method from the given file path"""
+        with open(path, mode="rb") as file:
+            data = pickle.load(file)
+            self.seed, self.rng, self.m, self.has_ranking, self.sample_ordering, self.current_ranking = data

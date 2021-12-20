@@ -13,7 +13,6 @@ class GaussianPosterior(Posterior):
         self._var = var
         self._var0 = var0
         self._mu0 = mu0
-        self.rng = np.random.default_rng(seed=seed)
 
     @staticmethod
     def new(seed=None, var=1.0, var0=1.0, mu0=0.0):

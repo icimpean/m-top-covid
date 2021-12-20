@@ -28,6 +28,10 @@ class Posterior(object):
         else:
             return np.mean(self.rewards, dtype=np.float64)
 
+    def compute_posterior(self, t):
+        """Compute posterior. Executed before sampling/updating rewards."""
+        pass
+
     def save(self, path: Path):
         """Save the posterior to the given file path"""
         raise NotImplementedError

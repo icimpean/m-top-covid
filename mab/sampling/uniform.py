@@ -1,3 +1,6 @@
+import pickle
+from pathlib import Path
+
 import numpy as np
 
 from mab.posteriors import Posteriors
@@ -9,8 +12,6 @@ class UniformSampling(Sampling):
     def __init__(self, posteriors: Posteriors, top_m, seed):
         # Super call
         super(UniformSampling, self).__init__(posteriors, seed)
-        # self.posteriors = posteriors
-        self._nr_arms = len(posteriors)
         self.m = top_m
         self.rng = np.random.default_rng(seed=seed)
 
@@ -30,12 +31,13 @@ class UniformSampling(Sampling):
     def sample_arm(self, t):
         """Sample an arm based on the sampling method."""
         least_sampled = self.least_sampled_indices()
-        arm = np.random.choice(least_sampled)
+        arm = self.rng.choice(least_sampled)
 
         theta = self.posteriors.sample_all(t)
         order = np.argsort(-np.array(theta))
         self.sample_ordering = order
         self.current_ranking = self.top_m(t)
+        print(f"=== TOP_M arms at timestep {t}: {self.current_ranking} ===")
 
         return arm
 
@@ -48,3 +50,15 @@ class UniformSampling(Sampling):
         if isinstance(means, list):
             means = np.array(means)
         return np.argsort(-means)[0:self.m]
+
+    def save(self, path: Path):
+        """Save the sampling method to the given file path"""
+        with open(path, mode="wb") as file:
+            data = [self.seed, self.rng, self.m, self.has_ranking, self.sample_ordering, self.current_ranking]
+            pickle.dump(data, file)
+
+    def load(self, path: Path):
+        """Load the sampling method from the given file path"""
+        with open(path, mode="rb") as file:
+            data = pickle.load(file)
+            self.seed, self.rng, self.m, self.has_ranking, self.sample_ordering, self.current_ranking = data

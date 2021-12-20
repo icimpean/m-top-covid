@@ -23,7 +23,6 @@ class BNPYGaussianMixturePosterior(Posterior):
         self._allocModelName = "Gauss"
         self._obsModelName = "memoVB"
         path = log_dir
-        # self._output_path = Path(f"{path}/rl-tmp/posterior_{num}/").absolute()
         self._output_path = Path(f"{path}/Posteriors/posterior_{num}/").absolute()
 
         self._nLap = max_iter
@@ -47,7 +46,7 @@ class BNPYGaussianMixturePosterior(Posterior):
 
     def update(self, reward, t):
         self.rewards.append(reward)
-        X = np.array(self.rewards)
+        X = np.array([reward])
         # Data contains a single feature (reward)
         if X.ndim == 1:
             X = X.reshape(-1, 1)
@@ -125,21 +124,15 @@ class BNPYGaussianMixturePosterior(Posterior):
         sample = random.choices(samples, weights, k=1)[0][0]  # TODO: abstract?
         return sample
 
-    def save(self, path):  # TODO
-        model_path = path.with_suffix("posterior_model")
-        init_path = path.with_suffix("posterior_init")
-        with open(model_path, "wb") as file:
-            pickle.dump(self._model, file)
-        with open(init_path, "wb") as file:
-            pickle.dump(self._initname, file)
+    def save(self, path):
+        with open(path, "wb") as file:
+            data = (self._model, self._initname, self.rewards)
+            pickle.dump(data, file)
 
-    def load(self, path):  # TODO
-        model_path = path.with_suffix("posterior_model")
-        init_path = path.with_suffix("posterior_init")
-        with open(model_path, "rb") as file:
-            self._model = pickle.load(file)
-        with open(init_path, "rb") as file:
-            self._initname = pickle.load(file)
+    def load(self, path):
+        with open(path, "rb") as file:
+            data = pickle.load(file)
+            self._model, self._initname, self.rewards = data
 
     def mixture_mean(self):
         """The mean of the gaussian mixture distribution."""

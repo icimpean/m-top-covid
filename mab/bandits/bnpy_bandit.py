@@ -21,7 +21,6 @@ class BNPYBayesianGaussianMixtureBandit(Bandit):
 
     def save(self, t):
         """Save the bandit's posteriors"""
-        # TODO
         path = Path(self._log_dir) / "Posteriors"
         path.mkdir(exist_ok=True)
         path /= f"t{t}-"
@@ -31,6 +30,5 @@ class BNPYBayesianGaussianMixtureBandit(Bandit):
         """Load the bandit's posteriors"""
         # Playing from given checkpoint
         self._from_checkpoint = True
-        # TODO
         path = Path(self._log_dir) / "Posteriors" / f"t{t}-"
         self.sampling.posteriors.load(path)

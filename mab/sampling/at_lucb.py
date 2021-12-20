@@ -1,4 +1,6 @@
+import pickle
 import sys
+from pathlib import Path
 
 import numpy as np
 
@@ -18,6 +20,7 @@ class AT_LUCB(Sampling):
 
         seed: The seed for initialisation.
     """
+
     def __init__(self, posteriors: Posteriors, top_m,
                  sigma1=0.5, alpha=0.99, epsilon=0,
                  seed=None):
@@ -46,32 +49,19 @@ class AT_LUCB(Sampling):
 
     def sample_arm(self, t):
         """Sample an arm based on the sampling method."""
-        if t == 0:
-            self._t = 1
-        elif self.pull_lowest:
-            self._t += 1
+        t_original = t
         t = self._t
-        if self.term(t, self.sigma(self.S[t - 1]), self.epsilon):
-            s = self.S[t - 1]
-            while self.term(t, self.sigma(s), self.epsilon):
-                s = s + 1
-            self.S.append(s)
-            self.Jt = self.top_m(t)
-        else:
-            self.S.append(self.S[t - 1])
-            if self.S[t] == 1:
-                self.Jt = self.top_m(t)
         # Original pulls both lowest and highest arm each timestep
         #   => divide over two steps and consider each two steps as 1 within AT-LUCB
         h_or_l = self.l if self.pull_lowest else self.h
         # Sample the arm
         arm = h_or_l(t, self.sigma(self.S[t - 1]))
-        # print("l" if self.pull_lowest else "h", t, arm)
 
         theta = self.posteriors.sample_all(t)
         order = np.argsort(-np.array(theta))
         self.sample_ordering = order
         self.current_ranking = self.top_m(t)
+        print(f"=== TOP_M arms at timestep {t_original}: {self.current_ranking} ===")
 
         # Next time pull the opposite
         self.pull_lowest = not self.pull_lowest
@@ -145,3 +135,34 @@ class AT_LUCB(Sampling):
         if np.isnan(mu):
             mu = 0
         return mu
+
+    def compute_posteriors(self, t):
+        if t == 0:
+            self._t = 1
+        elif self.pull_lowest:
+            self._t += 1
+        t = self._t
+        if self.term(t, self.sigma(self.S[t - 1]), self.epsilon):
+            s = self.S[t - 1]
+            while self.term(t, self.sigma(s), self.epsilon):
+                s = s + 1
+            self.S.append(s)
+            self.Jt = self.top_m(t)
+        else:
+            self.S.append(self.S[t - 1])
+            if self.S[t] == 1:
+                self.Jt = self.top_m(t)
+
+    def save(self, path: Path):
+        """Save the sampling method to the given file path"""
+        with open(path, mode="wb") as file:
+            data = [self.seed, self.rng, self.m, self.sigma1, self.alpha, self.epsilon, self.Jt, self.S, self.nr_arms,
+                    self.pull_lowest, self._t, self.has_ranking, self.sample_ordering, self.current_ranking]
+            pickle.dump(data, file)
+
+    def load(self, path: Path):
+        """Load the sampling method from the given file path"""
+        with open(path, mode="rb") as file:
+            data = pickle.load(file)
+            self.seed, self.rng, self.m, self.sigma1, self.alpha, self.epsilon, self.Jt, self.S, self.nr_arms, \
+                self.pull_lowest, self._t, self.has_ranking, self.sample_ordering, self.current_ranking = data

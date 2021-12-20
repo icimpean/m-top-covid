@@ -1,11 +1,11 @@
 from loggers import LogEntry
 
 
-class BFTSLogger(LogEntry):
-    """A log entry containing data per episode for a BFTS sampler."""
+class TopMLogger(LogEntry):
+    """A log entry containing data per episode for a sampler."""
     def __init__(self):
         # Super call
-        super(BFTSLogger, self).__init__()
+        super(TopMLogger, self).__init__()
         # The fields of the entry type
         self.episode = "Episode"
         self.arm = "Sampled Arm"
