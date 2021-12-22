@@ -59,4 +59,4 @@ class RandomBandit(Bandit):
 
     def load(self, t):
         """Load the bandit's weights/posteriors"""
-        pass
+        self._from_checkpoint = True

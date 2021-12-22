@@ -8,21 +8,23 @@ import time
 import sys
 sys.path.append("./")  # for command-line execution to find the other packages (e.g. envs)
 
+from mab.bandits.random_bandit import RandomBandit
+from mab.sampling.random import RandomSampling
 from envs.stride_env.action_wrapper import ActionWrapper, NoWasteActionWrapper
 from envs.stride_env.stride_env import StrideMDPEnv, Reward
 from args import parser as general_parser, load_checkpoint
-from bandits.bnpy_bandit import BNPYBayesianGaussianMixtureBandit
-from sampling.bfts import BFTS
 from resources.vaccine_supply import ObservedVaccineSupply
 
 
-# Play the bandit
+# Play a single arm multiple times
 parser = argparse.ArgumentParser(description="=============== MDP STRIDE ===============",
                                  epilog="example:\n\tpython3 mab/play_bandit.py envs/stride_env/config/run_default.xml ../runs/test_run0/ 60 500",
                                  formatter_class=argparse.RawDescriptionHelpFormatter,
                                  parents=[general_parser])
-parser.add_argument("episodes", type=int, help="The number of episodes to play")
-parser.add_argument("-l", type=int, help="Time limit in seconds for running the experiment")
+parser.add_argument("arm", type=int, help="The arm to play")
+parser.add_argument("episodes", type=int, help="The number of times to play the given arm")
+parser.add_argument("-l", type=int, default=24*60*60, help="Time limit in seconds for running the experiment")
+parser.add_argument("-m", type=int, default=20*60, help="Minimum time in seconds required to play another episode")
 
 
 def run_arm(parser_args):
@@ -48,19 +50,18 @@ def run_arm(parser_args):
                        )
 
     # The sampling method
-    sampling_method = BFTS.new(top_m=10)  # TODO: abstract top_m to command line
-    # Bandit
-    bandit = BNPYBayesianGaussianMixtureBandit(env.action_wrapper.num_actions, env, sampling_method, k=2,  # TODO: abstract args to command line
-                                               variational_max_iter=10, variational_tol=0.001,
-                                               seed=parser_args.seed, log_dir=Path(parser_args.save_dir).absolute(),
-                                               save_interval=10)
+    sampling_method = RandomSampling
+    # Random bandit (random bandit stores no posteriors, only used to play the arms requested by the commandline)
+    bandit = RandomBandit(env.nr_arms, env, sampling_method, seed=parser_args.seed,
+                          save_interval=10, log_dir=parser_args.save_dir)
 
     # Start from checkpoint if given
     timestep = load_checkpoint(parser_args, bandit)
 
     # Let the bandit run for the given number of episodes
     try:
-        bandit.play_bandit(parser_args.episodes, timestep=timestep, initialise_arms=0, time_limit=parser_args.l, limit_min=20*60)
+        bandit.play_arms([parser_args.arm] * parser_args.episodes, timestep=timestep,
+                         time_limit=parser_args.l, limit_min=parser_args.m)
     except KeyboardInterrupt:
         print("Stopping early...")
 
@@ -76,7 +77,7 @@ if __name__ == '__main__':
     #     "../envs/stride_env/config/run_default_cmd.xml", "../../Data/run_debug/test_load/", "3", "--episode_duration", "10", "-c", "_end", "-t", "9"
     # ])
     # args = parser.parse_args([
-    #     "../envs/stride_env/config/run_default_cmd.xml", "../../Data/run_debug/test_load5/", "50", "-l", "10", "-c", "_end", "-t", "18"
+    #     "../envs/stride_env/config/run_default_cmd.xml", "../../Data/run_debug/test_load7/", "5", "50", "-l", "30", "--episode_duration", "10", "-m", "5", #"-c", "_end", "-t", "5"
     # ])
 
     run_arm(args)

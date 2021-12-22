@@ -86,6 +86,9 @@ class Bandit(object):
                           f"Less than {limit_min} seconds remaining ({time_remaining})")
                     self.save("_time")
                     break
+                # Save 2 steps before time is up, just in case
+                elif time_remaining < (2 * limit_min):
+                    self.save("_pre_time")
 
     def _play(self, t, select_arm):
         """Play an arm selected by the given select_arm function"""
@@ -140,17 +143,29 @@ class Bandit(object):
             t += 1
         self.env.close()
 
-    def play_arms(self, arms, callbacks=None):
+    def play_arms(self, arms, timestep=0, time_limit=None, limit_min=15*60, callbacks=None):
         self.logger.create_file(self.log_file, from_checkpoint=self._from_checkpoint)
         self.sample_logger.create_file(self.sample_log_file, from_checkpoint=self._from_checkpoint)
 
-        for t, arm in enumerate(arms):
-            self._play(t, lambda _: arm)
+        t = timestep
+        for i, arm in enumerate(arms):
+            self._play(i + t, lambda _: arm)
 
             if callbacks is not None:
                 for callback in callbacks:
-                    callback(t, arm)
-        self.env.close()
+                    callback(i + t, arm)
+
+            # Save in time if running on cluster
+            if time_limit is not None:
+                time_remaining = time_limit - (time.time() - self._time_created)
+                if time_remaining < limit_min:
+                    print(f"Stopped bandit early after timestep {t + i} due to time limit. "
+                          f"Less than {limit_min} seconds remaining ({time_remaining})")
+                    self.save("_time")
+                    break
+                # Save 2 steps before time is up, just in case
+                elif time_remaining < (2 * limit_min):
+                    self.save("_pre_time")
 
     def save(self, t):
         """Save the bandit's weights/posteriors"""
