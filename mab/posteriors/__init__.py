@@ -141,6 +141,7 @@ class SinglePosteriors(Posteriors):
         for i in range(self.nr_arms):
             p_path = path.with_name(f"{path.name}arm_{i}.posterior")
             self.posteriors[i].load(p_path)
+            self.arm_means[i] = self[i].mean(None)
 
     def print_posteriors(self):
         from mab.posteriors.bayesian_gaussian_mixture import GaussianMixturePosterior

@@ -71,6 +71,47 @@ class StrideVisualisation(Visualisation):
         # Show, save and close the plot
         self.show_save_close(show, save_file)
 
+    def plot_runs(self, stride_csv_directory, episodes, given_files=None, plot_cumulative=False, title=None, show=True, save_file=None):
+        self._plot_text(title="Cases for a single run" if title is None else title,
+                        x_label="Days", y_label="# Individuals", legend=None)
+
+        names = self.cumulative_file_names if plot_cumulative else self.files_names
+        if given_files is None:
+            given_files = self.cumulative_file_names.keys() if plot_cumulative else self.files_names.keys()
+        path = Path(save_file).parent / f"{given_files}_statistics{'_cumul' if plot_cumulative else ''}.txt"
+        min_value = np.inf
+        max_value = -np.inf
+        with open(path, mode="w") as file:
+            for file_name in given_files:
+                name = names[file_name]
+                avg = []
+                col = None
+                for episode in range(episodes):
+                    stride_csv_file = Path(stride_csv_directory) / str(episode) / file_name
+                    try:
+                        y_values, min_y, max_y = self.load_file(stride_csv_file)
+                        min_value = min(min_value, min_y)
+                        max_value = max(max_value, max_y)
+                        avg.append(y_values)
+
+                        # p = plt.plot(range(len(y_values)), y_values, label=None, color=col, alpha=0.3)
+                        # col = p[0].get_color()
+                    except FileNotFoundError:
+                        continue
+
+                average = np.mean(avg, axis=0)
+                std = np.std(avg, axis=0)
+                file.write(f"Average max {name}: {np.max(average)}\n")
+                p = plt.plot(range(len(y_values)), average, label=name, color=col)
+                col = p[0].get_color()
+                plt.fill_between(range(len(y_values)), average-std, average+std, color=col, alpha=0.3)
+            # Center the graph around the y_values to plot
+        plt.ylim(self._center_y_lim(min_value, max_value))
+        plt.legend()
+
+        # Show, save and close the plot
+        self.show_save_close(show, save_file)
+
     def plot_trend(self, stride_csv_directory, stride_file, episode="", show=True, save_file=None):
         # Set up the plot
         self._plot_text(title="Cases for a single run", x_label="Days", y_label="# Individuals", legend=None)
@@ -90,6 +131,46 @@ class StrideVisualisation(Visualisation):
             plt.plot(range(len(y_values)), y_values, label=name)
         except FileNotFoundError:
             raise ValueError(f"No file found for stride value: {stride_file}")
+
+        # Center the graph around the y_values to plot
+        plt.ylim(self._center_y_lim(min_value, max_value))
+        plt.legend()
+
+        # Show, save and close the plot
+        self.show_save_close(show, save_file)
+
+    def plot_compare(self, stride_labels_dirs, stride_file, episode="", show=True, save_file=None):
+        # Set up the plot
+        try:
+            name = self.files_names[stride_file]
+        except KeyError:
+            name = self.cumulative_file_names[stride_file]
+        self._plot_text(title="Cases for a single run", x_label="Days", y_label=f"# {name}", legend=None)
+
+        # Get the data for each of the files:
+        min_value = np.inf
+        max_value = -np.inf
+
+        for label, str_dirs in stride_labels_dirs.items():
+            all_values = []
+            for str_dir in str_dirs:
+                stride_csv_file = Path(str_dir) / str(episode) / stride_file
+                try:
+                    y_values, min_y, max_y = self.load_file(stride_csv_file)
+                    min_value = min(min_value, min_y)
+                    max_value = max(max_value, max_y)
+                    all_values.append(y_values)
+                except FileNotFoundError:
+                    # raise ValueError(f"No file found for stride value: {stride_file}")
+                    print("file not found:", stride_csv_file)
+                    continue
+            if len(all_values) != 0:
+                all_values = np.array(all_values)
+                means = np.mean(all_values, axis=0)
+                std = np.std(all_values, axis=0)
+                x = range(len(all_values[0]))
+                p = plt.plot(x, means, label=label)
+                plt.fill_between(x, means-std, means+std, color=p[0].get_color(), alpha=0.4)
 
         # Center the graph around the y_values to plot
         plt.ylim(self._center_y_lim(min_value, max_value))

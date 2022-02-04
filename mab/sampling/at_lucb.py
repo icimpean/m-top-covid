@@ -1,10 +1,10 @@
+import logging
 import pickle
 import sys
 from pathlib import Path
 
 import numpy as np
 
-from mab.posteriors import Posteriors
 from mab.sampling import Sampling
 
 
@@ -14,18 +14,18 @@ class AT_LUCB(Sampling):
     From: https://github.com/plibin-vub/bfts
 
     Attributes:
-        posteriors: The Posteriors to apply the sampling method to
+        nr_arms: The number of arms used.
         top_m: The number of posteriors to provide as the top m best posteriors.
         sigma1: The
 
         seed: The seed for initialisation.
     """
 
-    def __init__(self, posteriors: Posteriors, top_m,
+    def __init__(self, nr_arms, top_m,
                  sigma1=0.5, alpha=0.99, epsilon=0,
                  seed=None):
         # Super call
-        super(AT_LUCB, self).__init__(posteriors, seed)
+        super(AT_LUCB, self).__init__(nr_arms, seed)
         #
         self.m = top_m
         self.sigma1 = sigma1
@@ -34,7 +34,6 @@ class AT_LUCB(Sampling):
 
         self.Jt = np.full(self.m, -1)
         self.S = [1]
-        self.nr_arms = self.posteriors.nr_arms
         self.pull_lowest = True
         self._t = 1
 
@@ -45,7 +44,11 @@ class AT_LUCB(Sampling):
     @staticmethod
     def new(top_m, sigma1=0.5, alpha=0.99, epsilon=0):
         """Workaround to add a given top_m arms to the sampling method"""
-        return lambda posteriors, seed: AT_LUCB(posteriors, top_m, sigma1, alpha, epsilon, seed)
+        return lambda posterior, seed: AT_LUCB(posterior, top_m, sigma1, alpha, epsilon, seed)
+
+    def update(self, arm, reward, t):
+        """Update the posteriors"""
+        super().update(arm, reward, t)
 
     def sample_arm(self, t):
         """Sample an arm based on the sampling method."""
@@ -57,11 +60,9 @@ class AT_LUCB(Sampling):
         # Sample the arm
         arm = h_or_l(t, self.sigma(self.S[t - 1]))
 
-        theta = self.posteriors.sample_all(t)
-        order = np.argsort(-np.array(theta))
-        self.sample_ordering = order
+        self.sample_ordering = np.argsort(-self.mean_per_arm)
         self.current_ranking = self.top_m(t)
-        print(f"=== TOP_M arms at timestep {t_original}: {self.current_ranking} ===")
+        logging.info(f"=== TOP-M arms at timestep {t_original}: {self.current_ranking} ===")
 
         # Next time pull the opposite
         self.pull_lowest = not self.pull_lowest
@@ -72,8 +73,7 @@ class AT_LUCB(Sampling):
     def top_m(self, t):
         """Get the top m arms at timestep t"""
         # Get the means per arm
-        means = np.array(self.posteriors.means_per_arm(t))
-        return np.argsort(-means)[0:self.m]
+        return np.argsort(-self.mean_per_arm)[0:self.m]
 
     def sigma(self, s):
         return self.sigma1 * self.alpha ** (s - 1)
@@ -91,18 +91,18 @@ class AT_LUCB(Sampling):
         return U - L < epsilon
 
     def L(self, t, a, sigma):
-        mu = self._get_mean(a, t)
+        mu = self.mean_per_arm[a]
         if mu == 0.0:
             return float("-inf")
         else:
-            return mu - self.beta(len(self.posteriors[a].rewards), t, sigma)
+            return mu - self.beta(len(self.rewards_per_arm[a]), t, sigma)
 
     def U(self, t, a, sigma):
-        mu = self._get_mean(a, t)
+        mu = self.mean_per_arm[a]
         if mu == 0.0:
             return float("inf")
         else:
-            return mu + self.beta(len(self.posteriors[a].rewards), t, sigma)
+            return mu + self.beta(len(self.rewards_per_arm[a]), t, sigma)
 
     def h(self, t, sigma):
         min_ = sys.float_info.max
@@ -129,13 +129,6 @@ class AT_LUCB(Sampling):
 
         return int(max_index)
 
-    def _get_mean(self, arm, t):
-        # Protect against NaN mean at the start due to no rewards for a given arm
-        mu = self.posteriors[arm].mean(t)
-        if np.isnan(mu):
-            mu = 0
-        return mu
-
     def compute_posteriors(self, t):
         if t == 0:
             self._t = 1
@@ -153,14 +146,14 @@ class AT_LUCB(Sampling):
             if self.S[t] == 1:
                 self.Jt = self.top_m(t)
 
-    def save(self, path: Path):
+    def save(self, t, path: Path):
         """Save the sampling method to the given file path"""
         with open(path, mode="wb") as file:
             data = [self.seed, self.rng, self.m, self.sigma1, self.alpha, self.epsilon, self.Jt, self.S, self.nr_arms,
                     self.pull_lowest, self._t, self.has_ranking, self.sample_ordering, self.current_ranking]
             pickle.dump(data, file)
 
-    def load(self, path: Path):
+    def load(self, t, path: Path):
         """Load the sampling method from the given file path"""
         with open(path, mode="rb") as file:
             data = pickle.load(file)

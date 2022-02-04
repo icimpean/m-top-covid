@@ -30,15 +30,21 @@ class BNPYGaussianMixturePosterior(Posterior):
         self._ECovMat = "eye"
         self._initname = 'randexamples'
         self._K = k
-        # TODO: tol == convergeThr?
+        self._tol = tol
+
+        self.mean_ = 0
+        self.var_ = 0
+        self.std_ = 0
 
         self._is_initialised = False
         # force update with no new data to sample uninitialised posteriors
         _init_data = bnpy.data.XData(np.random.default_rng(seed=seed).random(size=(self._K, 1)))
         self._model, self.info = bnpy.run(_init_data, self._model_type, self._allocModelName, self._obsModelName,
                                           doWriteStdOut=False, doSaveToDisk=True, taskID=-1,
-                                          output_path=self._output_path, initname=self._initname,
-                                          nLap=self._nLap, sF=self._sF, ECovMat=self._ECovMat, K=2)
+                                          output_path=self._output_path, initname=self._initname, K=1,
+                                          nLap=self._nLap, sF=self._sF, ECovMat=self._ECovMat, convergeThr=self._tol)
+        # Don't save output path of this trained posterior,
+        # It only serves as a temporary reward distribution until real data is used for training
 
     @staticmethod
     def new(seed, k, tol, max_iter, num=0, log_dir="/Users/alexandracimpean/Documents/VUB/PhD/COVID19/Code/rl-tmp/"):
@@ -46,23 +52,26 @@ class BNPYGaussianMixturePosterior(Posterior):
 
     def update(self, reward, t):
         self.rewards.append(reward)
-        X = np.array([reward])
+        X = np.array(self.rewards)
         # Data contains a single feature (reward)
         if X.ndim == 1:
             X = X.reshape(-1, 1)
         dataset = bnpy.data.XData(X)
         # Run the algorithm
         self._model, self.info = self._update(dataset, t)
+        self._is_initialised = True
+        # Update statistics
+        self.mean_ = self.mean(t)
+        self.var_ = self.get_cov()          # NOT the variance, but the covariance matrix for the mixture components
+        self.std_ = self.get_std_dev()      # NOT the std dev, but uncertainty on mean for each mixture component
 
     def _update(self, dataset, t):
         model, info_dict = bnpy.run(dataset, self._model_type, self._allocModelName, self._obsModelName,
-                                    doSaveToDisk=True, taskID=t,
-                                    output_path=self._output_path, nLap=self._nLap,
-                                    sF=self._sF, ECovMat=self._ECovMat,
-                                    K=1 if self._initname == 'randexamples' else self._K,
-                                    initname=self._initname,
-                                    moves='birth,merge,shuffle',
-                                    m_startLap=3, b_startLap=2, b_Kfresh=2
+                                    doSaveToDisk=True, taskID=t, output_path=self._output_path, nLap=self._nLap,
+                                    sF=self._sF, ECovMat=self._ECovMat, convergeThr=self._tol, doWriteStdOut=True,
+                                    K=1 if self._initname == 'randexamples' else self._K, initname=self._initname,
+                                    nTask=1, nBatch=1,
+                                    moves='birth,merge,shuffle', m_startLap=3, b_startLap=0, b_Kfresh=2
                                     )
         self._initname = info_dict['task_output_path']
         return model, info_dict
@@ -97,44 +106,49 @@ class BNPYGaussianMixturePosterior(Posterior):
         """bnpy scalar precision on parameter mu defined in GaussObsModel"""
         return self._model.obsModel.Post.kappa
 
+    def get_std_dev(self):
+        """Get std dev from mean precision on each component"""
+        prec = self.mean_precisions()
+        var = 1 / prec
+        std = np.sqrt(var)
+        return std
+
     def get_K(self):
         return self._model.allocModel.K
 
     def sample(self, t):
         """Sample the means"""
-        samples = []
-        weights = []
-        # Sample each mixture
-        for m in range(self._model.allocModel.K):
-            # Sample the mixture's mean
-            mu = self.get_means()
-            # print("mu:", mu)
-            # The precision of each components on the mean distribution (Gaussian).
-            mu_precision = self.mean_precisions()[m]
-            mu_variance = 1 / mu_precision
-            mu_std_dev = mu_variance ** (1 / 2)
-            # Sample the mean distribution
-            m_sample = self.rng.normal(loc=mu, scale=mu_std_dev)
-            # Adapt the mean according to its weight
-            w = self.get_weights()[m]
-            weights.append(w)
-            samples.append(m_sample)
-
-        # Choose a mean according to the weights
-        sample = random.choices(samples, weights, k=1)[0][0]  # TODO: abstract?
-        return sample
+        weights = self.get_weights()
+        means = self.get_means()
+        precisions = self.mean_precisions()
+        overall_mean_sample = 0
+        # print("SAMPLE")
+        for k in range(self._model.allocModel.K):
+            w = weights[k]
+            mu = means[k][0]
+            # precision = 1 / variance; variance = std ** 2
+            prec = precisions[k]
+            std = np.sqrt(1 / prec)
+            # Sample mean distribution
+            m_sample = self.rng.normal(loc=mu, scale=std)
+            # print("\tk:", k, "sample:", m_sample, "w:", w, "mu:", mu, "p:", prec, "std:", std)
+            # Weighted sample for all mixtures:
+            overall_mean_sample += (m_sample * w)
+        # print("\tOverall mean:", overall_mean_sample)
+        return overall_mean_sample
 
     def save(self, path):
         with open(path, "wb") as file:
-            data = (self._model, self._initname, self.rewards)
+            data = (self.rng, self._model, self._initname, self.rewards, self.mean_, self.var_, self.std_)
             pickle.dump(data, file)
 
     def load(self, path):
         with open(path, "rb") as file:
             data = pickle.load(file)
-            self._model, self._initname, self.rewards = data
+            self.rng, self._model, self._initname, self.rewards, self.mean_, self.var_, self.std_ = data
+            self._is_initialised = True
 
-    def mixture_mean(self):
+    def mean(self, t):
         """The mean of the gaussian mixture distribution."""
         mean = np.sum(self.get_means() * self.get_weights())
         return mean

@@ -26,6 +26,7 @@ class Reward(Enum):
     total_infected = auto()
     total_hospitalised = auto()
     total_at_risk = auto()
+    total_at_risk_hosp = auto()
 
 
 # The mapping of reward types and the corresponding method call
@@ -38,7 +39,8 @@ _reward_mapping = {
     #
     Reward.total_infected: lambda mdp: mdp.GetTotalInfected(),
     Reward.total_hospitalised: lambda mdp: mdp.GetTotalHospitalised(),
-    Reward.total_at_risk: lambda mdp: mdp.GetTotalInfected(),  # TODO: abstract numerator and denominator in reward specification
+    Reward.total_at_risk: lambda mdp: mdp.GetTotalInfected(),
+    Reward.total_at_risk_hosp: lambda mdp: mdp.GetTotalHospitalised(),
 }
 
 
@@ -149,7 +151,7 @@ class StrideMDPEnv(Env):
         """Signal the simulator to end the simulation and its own processes."""
         self._mdp.End()
 
-    def step(self, action):
+    def step(self, action=None):
         """Perform a step of step_size in the simulation.
 
         Args:
@@ -166,18 +168,22 @@ class StrideMDPEnv(Env):
         info = {}
         # Execute the action to vaccinate and simulate for as many days as required
         for t in range(self.step_size):
-            combined_action = self.action_wrapper.get_combined_action(action, self._timestep + t, self._population_size,
-                                                                      self._mdp.GetAgeGroupSizes())
-            self._vaccinate(combined_action)
+            # If an action is given (!= None), vaccinate
+            if action is not None:
+                combined_action = self.action_wrapper.get_combined_action(action, self._timestep + t,
+                                                                          self._population_size,
+                                                                          self._mdp.GetAgeGroupSizes())
+                self._vaccinate(combined_action)
+            # Simulate the day and get the reward
             self._mdp.SimulateDay()
             reward = self.get_reward()
 
-            print(f"infected: {self._mdp.CountInfectedCases()}, exposed: {self._mdp.CountExposedCases()}, "
-                  f"infectious: {self._mdp.CountInfectiousCases()}, symptomatic: {self._mdp.CountSymptomaticCases()}, "
-                  f"hospitalised: {self._mdp.CountHospitalisedCases()}, total hosp.: {self._mdp.GetTotalHospitalised()}",
-                  f"at risk at start: {self._at_risk}, (temp) reward: {self._transform_reward(reward)}")
-            print(f"Unvaccinated age groups:", self._mdp.GetAgeGroupSizes())
-            print(f"Vaccinated age groups:", self._mdp.GetVaccinatedAgeGroups())
+            # print(f"infected: {self._mdp.CountInfectedCases()}, exposed: {self._mdp.CountExposedCases()}, "
+            #       f"infectious: {self._mdp.CountInfectiousCases()}, symptomatic: {self._mdp.CountSymptomaticCases()}, "
+            #       f"hospitalised: {self._mdp.CountHospitalisedCases()}, total hosp.: {self._mdp.GetTotalHospitalised()}",
+            #       f"at risk at start: {self._at_risk}, (temp) reward: {self._transform_reward(reward)}")
+            # print(f"Unvaccinated age groups:", self._mdp.GetAgeGroupSizes())
+            # print(f"Vaccinated age groups:", self._mdp.GetVaccinatedAgeGroups())
 
         # Transform the reward as requested
         reward = self._transform_reward(reward)
@@ -210,15 +216,16 @@ class StrideMDPEnv(Env):
         v_type = random.choice(stride.AllVaccineTypes[1:])
         return available_vaccines, group, v_type
 
-    def _transform_reward(self, infected):
+    def _transform_reward(self, num):
         # Consider entire population or only susceptible/not immune
-        size = self._at_risk if self.reward is Reward.total_at_risk else self._population_size
+        size = self._at_risk if self.reward in [Reward.total_at_risk, Reward.total_at_risk_hosp] \
+            else self._population_size
         if self.reward_type == "neg":
-            return size - infected
+            return size - num
         elif self.reward_type == "norm":
-            return (size - infected) / size
+            return (size - num) / size
         else:
-            return infected
+            return num
 
     def get_reward(self):
         """Get the reward from the MDP"""

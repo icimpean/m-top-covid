@@ -1,68 +1,47 @@
 # noinspection PyUnresolvedReferences
 import pylibstride as stride
 
+from pathlib import Path
 import argparse
 import time
 
 import sys
 sys.path.append("./")  # for command-line execution to find the other packages (e.g. envs)
 
-from envs.stride_env.action_wrapper import ActionWrapper, NoWasteActionWrapper
-from envs.stride_env.stride_env import StrideMDPEnv, Reward
-from args import parser as general_parser
-from bandits.random_bandit import RandomBandit
-from sampling.random import RandomSampling
-from resources.vaccine_supply import ConstantVaccineSupply, ObservedVaccineSupply
-
+from mab.bandits.random_bandit import RandomBandit
+from envs.stride_env.stride_env import Reward
+from args import parser as general_parser, load_checkpoint, create_stride_env
 
 # Play a single arm multiple times
 parser = argparse.ArgumentParser(description="=============== MDP STRIDE ===============",
-                                 epilog="example:\n\tpython3 mab/play_arms.py envs/stride_env/config/run_default.xml ../runs/test_run0/ 60 0 2",
+                                 epilog="example:\n\tpython3 mab/play_arm.py "
+                                        "../envs/stride_env/config/conf_0/config_bandit1_600k.xml "
+                                        "../../Data/debug/arms_{a}/ 20 0 --episode_duration 5",
                                  formatter_class=argparse.RawDescriptionHelpFormatter,
                                  parents=[general_parser])
-parser.add_argument("arm", type=int, help="The arm to play")
-parser.add_argument("episodes", type=int, help="The number of times to play the given arm")
+parser.add_argument("--arm", type=str, required=True, help="The arm to play")
 
 
 def run_arm(parser_args):
     t_start = time.time()
 
-    # The arm to run
-    arms = [parser_args.arm] * parser_args.episodes
-    # Bandit decides policy once at the start
-    step_size = parser_args.episode_duration
-
-    # The vaccine supply
-    # vaccine_supply = ConstantVaccineSupply(  # TODO: add in XML config
-    #     vaccine_type_counts={
-    #         stride.VaccineType.mRNA: 60000,
-    #         stride.VaccineType.adeno: 40000,
-    #     }, population_size=11000000
-    # )
-    # Weekly deliveries, based on https://covid-vaccinatie.be/en
-    vaccine_supply = ObservedVaccineSupply(starting_date="2021-01-01", days=parser_args.episode_duration,
-                                           population_size=11000000, seed=parser_args.seed)
+    parser_args.save_dir = Path(parser_args.save_dir).absolute()
+    # No arm was given => no action
+    arm = parser_args.arm
+    arm = int(arm) if arm.isdigit() else None
 
     # The type of environment
-    env = StrideMDPEnv(states=False, seed=parser_args.seed, episode_duration=parser_args.episode_duration,
-                       step_size=step_size,
-                       config_file=parser_args.config, available_vaccines=vaccine_supply,
-                       reward=Reward.total_infected, reward_type='norm',  # TODO: add in XML config
-                       # TODO: add in XML config
-                       mRNA_properties=stride.LinearVaccineProperties("mRNA vaccine", 0.95, 0.95, 1.00, 42),
-                       adeno_properties=stride.LinearVaccineProperties("Adeno vaccine", 0.67, 0.67, 1.00, 42),
-                       action_wrapper=NoWasteActionWrapper
-                       )
+    env = create_stride_env(parser_args, reward=Reward.total_at_risk)
 
-    # The sampling method
-    sampling_method = RandomSampling
     # Random bandit (random bandit stores no posteriors, only used to play the arms requested by the commandline)
-    bandit = RandomBandit(env.nr_arms, env, sampling_method, seed=parser_args.seed,
-                          save_interval=100, log_dir=parser_args.save_dir)
+    bandit = RandomBandit(env.nr_arms, env, seed=parser_args.seed, save_interval=10, log_dir=parser_args.save_dir)
+    # Start from checkpoint if given
+    timestep = load_checkpoint(parser_args, bandit)
 
     # Let the bandit run for the given number of episodes
     try:
-        bandit.play_arms(arms)
+        bandit.play_arms([arm] * parser_args.episodes, timestep=timestep,
+                         time_limit=parser_args.l, limit_min=parser_args.m)
     except KeyboardInterrupt:
         print("Stopping early...")
 
@@ -73,5 +52,16 @@ def run_arm(parser_args):
 
 if __name__ == '__main__':
 
+    import logging
+    logging.getLogger().setLevel("INFO")
+
     args = parser.parse_args()
+    # a = "179" #"None"
+    # args = parser.parse_args([
+    #     "../envs/stride_env/config/conf_0/config_bandit1_600k.xml", f"../../Data/debug/arms_{a}/",
+    #     "--episodes", "20", "--arm", a, "--episode_duration", "121",
+    #     # "-l", "30", "-m", "5",
+    #     # "-c", "_time", "-t", "8",
+    # ])
+
     run_arm(args)

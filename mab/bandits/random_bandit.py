@@ -1,9 +1,8 @@
 import os
 import time
-from typing import Type
 
-from mab.bandits.bandit import Bandit
-from mab.sampling import Sampling
+from mab.bandits import Bandit
+from mab.sampling.random import RandomSampling
 
 
 class RandomBandit(Bandit):
@@ -12,24 +11,16 @@ class RandomBandit(Bandit):
     Attributes:
         nr_arms: The number of arms the bandit has.
         env: The Env instance for the bandit to interact with.
-        sampling_method: The sampling method for sampling arms and computing the posteriors.
         seed: The seed to use for random generations.
         log_dir: The directory where to store the log files for both the bandit and environment (if applicable).
         save_interval: After how many episodes to save the bandit.
     """
-    def __init__(self, nr_arms, env, sampling_method: Type[Sampling], seed=None, log_dir="./test_results", save_interval=1):
-        # Create the posteriors and sampling method
-        posteriors = [None] * nr_arms
-        sampling = sampling_method(posteriors, seed)
+    def __init__(self, nr_arms, env, seed=None, log_dir="./test_results", save_interval=1):
+        sampling = RandomSampling(nr_arms, seed)
         # Super call
         super(RandomBandit, self).__init__(nr_arms, env, sampling, seed, log_dir, save_interval)
 
-    def best_arm(self, t):
-        """Select the best arm based on the current posteriors."""
-        arm = self.sampling.best_arm(t)
-        return arm
-
-    def _play(self, t, select_arm):
+    def play_(self, t, select_arm):
         """Play an arm selected by the given select_arm function"""
         time_start = time.time()
         # Reset the simulation
