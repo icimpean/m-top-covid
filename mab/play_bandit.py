@@ -25,7 +25,8 @@ parser = argparse.ArgumentParser(description="=============== MDP STRIDE =======
 parser.add_argument("--posterior", type=str, default="T", choices=["T", "TT", "BGM"],
                     help="The type of posterior to use")
 parser.add_argument("--top_m", type=int, default=3, help="The m-top to use")
-parser.add_argument("--reward", type=str, default="inf", choices=["inf", "hosp"], help="The reward to use")
+parser.add_argument("--reward", type=str, default="inf", choices=["inf", "hosp", "hosp_neg"], help="The reward to use")
+parser.add_argument("--reward_type", type=str, default="norm", choices=["norm", "neg"], help="The reward type to use")
 
 
 def get_reward(parser_args):
@@ -34,6 +35,8 @@ def get_reward(parser_args):
         reward = Reward.total_at_risk
     elif parser_args.reward == "hosp":
         reward = Reward.total_at_risk_hosp
+    elif parser_args.reward == "hosp_neg":
+        reward = Reward.total_hospitalised
     else:
         raise ValueError(f"Unsupported reward: {parser_args.reward}")
     print("Reward set to", reward.name)
@@ -68,7 +71,7 @@ def run_arm(parser_args):
 
     # The type of environment
     reward = get_reward(parser_args)
-    env = create_stride_env(parser_args, reward=reward)
+    env = create_stride_env(parser_args, reward=reward, reward_type=parser_args.reward_type)
     nr_arms = env.action_wrapper.num_actions
 
     # The sampling method
@@ -101,16 +104,16 @@ if __name__ == '__main__':
     args = parser.parse_args()
     # post = "TT"
     # post = "BGM"
-    # m = "5"
+    # m = "10"
     # args = parser.parse_args([
-    #     "../envs/stride_env/config/conf_0/config_bandit1_600k.xml", f"../../Data/debug/bandit2_{post}_save/",
-    #     "--episodes", "20", "--episode_duration", "5", "--reward", "inf", "--posterior", post, "--top_m", m,
+    #     "../envs/stride_env/config/conf_0/config.xml", f"../../Data/debug/test_{post}/",
+    #     "--episodes", "2000", "--episode_duration", "20", "--reward", "hosp_neg", "--reward_type", "neg", "--posterior", post, "--top_m", m, "--seed", "123",
     #     # "-l", "30", "-m", "5",
-    #     # "-c", "_time", "-t", "12",
+    #     # "-c", "790", "-t", "791",
     # ])
 
     # args = parser.parse_args([
-    #     "../envs/stride_env/config/conf_0/config_bandit1_600k.xml", f"../../Data/debug/flute_bandit_{post}/",
+    #     "../envs/stride_env/config/conf_0_old/config_bandit1_600k.xml", f"../../Data/debug/flute_bandit_{post}/",
     #     "--episodes", "1000", "--episode_duration", "5", "--reward", "inf", "--posterior", post, "--top_m", m,
     #     # "-l", "30", "-m", "5",
     #     # "-c", "_time", "-t", "776",

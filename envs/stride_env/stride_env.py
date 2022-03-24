@@ -221,7 +221,7 @@ class StrideMDPEnv(Env):
         size = self._at_risk if self.reward in [Reward.total_at_risk, Reward.total_at_risk_hosp] \
             else self._population_size
         if self.reward_type == "neg":
-            return size - num
+            return -num
         elif self.reward_type == "norm":
             return (size - num) / size
         else:
