@@ -144,13 +144,16 @@ class BNPYGaussianMixturePosterior(Posterior):
 
     def save(self, path):
         with open(path, "wb") as file:
-            data = (self.rng, self._model, self._initname, self.rewards, self.mean_, self.var_, self.std_)
+            data = (self.rng, self._model, self._initname, self.rewards, self.mean_, self.var_, self.std_, self.task_id)
             pickle.dump(data, file)
 
     def load(self, path):
         with open(path, "rb") as file:
             data = pickle.load(file)
-            self.rng, self._model, self._initname, self.rewards, self.mean_, self.var_, self.std_ = data
+            if len(data) == 7:
+                self.rng, self._model, self._initname, self.rewards, self.mean_, self.var_, self.std_ = data
+            else:
+                self.rng, self._model, self._initname, self.rewards, self.mean_, self.var_, self.std_, self.task_id = data
             self._is_initialised = True
 
     def mean(self, t):
