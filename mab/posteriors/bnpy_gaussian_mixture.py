@@ -24,6 +24,7 @@ class BNPYGaussianMixturePosterior(Posterior):
         self._obsModelName = "memoVB"
         path = log_dir
         self._output_path = Path(f"{path}/Posteriors/posterior_{num}/").absolute()
+        self.task_id = 0
 
         self._nLap = max_iter
         self._sF = 0.1
@@ -40,9 +41,11 @@ class BNPYGaussianMixturePosterior(Posterior):
         # force update with no new data to sample uninitialised posteriors
         _init_data = bnpy.data.XData(np.random.default_rng(seed=seed).random(size=(self._K, 1)))
         self._model, self.info = bnpy.run(_init_data, self._model_type, self._allocModelName, self._obsModelName,
-                                          doWriteStdOut=False, doSaveToDisk=True, taskID=-1,
+                                          doWriteStdOut=False, doSaveToDisk=True, taskID=0,
                                           output_path=self._output_path, initname=self._initname, K=1,
-                                          nLap=self._nLap, sF=self._sF, ECovMat=self._ECovMat, convergeThr=self._tol)
+                                          nLap=self._nLap, sF=self._sF, ECovMat=self._ECovMat, convergeThr=self._tol,
+                                          traceEvery=0, printEvery=0, saveEvery=0, save_logs=False,
+                                          )
         # Don't save output path of this trained posterior,
         # It only serves as a temporary reward distribution until real data is used for training
 
@@ -66,12 +69,14 @@ class BNPYGaussianMixturePosterior(Posterior):
         self.std_ = self.get_std_dev()      # NOT the std dev, but uncertainty on mean for each mixture component
 
     def _update(self, dataset, t):
+        self.task_id = 0 if self.task_id else 1
         model, info_dict = bnpy.run(dataset, self._model_type, self._allocModelName, self._obsModelName,
-                                    doSaveToDisk=True, taskID=t, output_path=self._output_path, nLap=self._nLap,
+                                    doSaveToDisk=True, taskID=self.task_id, output_path=self._output_path, nLap=self._nLap,
                                     sF=self._sF, ECovMat=self._ECovMat, convergeThr=self._tol, doWriteStdOut=True,
                                     K=1 if self._initname == 'randexamples' else self._K, initname=self._initname,
                                     nTask=1, nBatch=1,
-                                    moves='birth,merge,shuffle', m_startLap=3, b_startLap=0, b_Kfresh=2
+                                    moves='birth,merge,shuffle', m_startLap=3, b_startLap=0, b_Kfresh=2,
+                                    traceEvery=0, printEvery=0, saveEvery=0, save_logs=False,
                                     )
         self._initname = info_dict['task_output_path']
         return model, info_dict
