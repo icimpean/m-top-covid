@@ -269,7 +269,7 @@ class StrideGroundTruthEnv(Env):
         self.rng = np.random.default_rng(seed=seed)
 
         # The distributions file
-        self.config_file = f"../envs/stride_env/real-distributions/{'inf' if self.use_inf else 'hosp'}.csv"
+        self.config_file = f"./envs/stride_env/real-distributions/{'inf' if self.use_inf else 'hosp'}.csv"
         if not os.path.isfile(self.config_file):
             self.config_file = "../" + self.config_file
         self.rewards = {}
