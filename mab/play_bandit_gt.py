@@ -121,14 +121,11 @@ if __name__ == '__main__':
     import logging
     logging.getLogger().setLevel("INFO")
 
-    # algo = "AT-LUCB"
+    # algo = "Uniform"
     # post = "BGM"
     # m = "10"
     # episodes = "10000"
-    #
-    # step = 1  # TODO 20
-    # start_sim = 0 * step
-    # rw = "inf"
+    # rw = "hosp"
     # seed = 0
     #
     # args = parser.parse_args([
@@ -136,4 +133,5 @@ if __name__ == '__main__':
     #     "--episodes", episodes, "--episode_duration", "120", "--reward", rw, "--reward_type", "norm",
     #     "--posterior", post, "--top_m", m, "--seed", f"{seed}", "--algorithm", algo
     # ])
+    args = parser.parse_args()
     run_arm(args)
