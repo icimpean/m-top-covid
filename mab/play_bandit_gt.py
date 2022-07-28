@@ -7,9 +7,6 @@ from pathlib import Path
 
 import sys
 
-from mab.sampling.at_lucb import AT_LUCB
-from mab.sampling.uniform import UniformSampling
-
 sys.path.append("./")  # for command-line execution to find the other packages (e.g. envs)
 
 from envs.stride_env.stride_env import Reward, StrideGroundTruthEnv
@@ -19,6 +16,8 @@ from mab.posteriors.bnpy_gaussian_mixture import BNPYBGMPosteriors
 from mab.posteriors.t_distribution import TDistributionPosteriors
 from mab.posteriors.truncated_t_distribution import TruncatedTDistributionPosteriors
 from sampling.bfts import BFTS
+from mab.sampling.at_lucb import AT_LUCB
+from mab.sampling.uniform import UniformSampling
 
 
 # Play a single arm multiple times
@@ -135,3 +134,23 @@ if __name__ == '__main__':
     # ])
     args = parser.parse_args()
     run_arm(args)
+
+    # import csv
+    # header = ["seed", "episodes", "episode_duration", "reward", "reward_type", "posterior", "top_m", "algo"]
+    #
+    # episodes = 10000
+    # episode_duration = 120
+    # post = "BGM"
+    # m = "10"
+    # reward_type = "norm"
+    # for reward in ["inf", "hosp"]:
+    #     rows = []
+    #     for seed in range(100):
+    #         for algo in ["Uniform", "AT-LUCB", "BFTS"]:
+    #             row = [seed, episodes, episode_duration, reward, reward_type, post if algo == "BFTS" else "", m, algo]
+    #             rows.append(row)
+    #
+    #     with open(f"./{reward}_gt.csv", mode="w") as file:
+    #         writer = csv.writer(file)
+    #         writer.writerow(header)
+    #         writer.writerows(rows)
