@@ -1,4 +1,6 @@
 # noinspection PyUnresolvedReferences
+import os
+
 import pylibstride as stride
 
 from enum import Enum, auto
@@ -7,9 +9,10 @@ import random
 import resource
 import logging
 from typing import Type
+import csv
 
 from envs.env import Env
-from envs.stride_env.action_wrapper import ActionWrapper
+from envs.stride_env.action_wrapper import ActionWrapper, NoWasteActionWrapper
 from resources.vaccine_supply import VaccineSupply, ConstantVaccineSupply
 
 
@@ -120,6 +123,8 @@ class StrideMDPEnv(Env):
 
         self._x = []
 
+        self.first = True
+
     def reset(self, seed=None, output_dir=None, output_prefix=None):
         """Reset the environment and return the initial state (or None if no states are used)."""
         if self._timestep != 0:
@@ -141,6 +146,8 @@ class StrideMDPEnv(Env):
         self._population_size = self._mdp.GetPopulationSize()
         self._age_groups_sizes = self._mdp.GetAgeGroupSizes()
         self._at_risk = self._mdp.GetAtRisk()
+        print("at risk:", self._at_risk)
+        print(self._age_groups_sizes)
         return None
 
     def close_x(self):
@@ -173,7 +180,7 @@ class StrideMDPEnv(Env):
                 combined_action = self.action_wrapper.get_combined_action(action, self._timestep + t,
                                                                           self._population_size,
                                                                           self._mdp.GetAgeGroupSizes())
-                self._vaccinate(combined_action)
+                self._vaccinate(t, action, combined_action)
             # Simulate the day and get the reward
             self._mdp.SimulateDay()
             reward = self.get_reward()
@@ -194,11 +201,29 @@ class StrideMDPEnv(Env):
         # Give feedback
         return state, reward, done, info
 
-    def _vaccinate(self, combined_action):
-        # Could be parallelized in STRIDE:
-        #   multiple age groups could be vaccinated at the same time since they don't overlap
-        for action in combined_action:
-            self._mdp.Vaccinate(*action)
+    def _vaccinate(self, t, action, combined_action):
+        fn = f"vaccine_distributions_{action}.csv"
+        vts = [v.name for v in stride.AllVaccineTypes]
+        ags = [g.name for g in stride.AllAgeGroups]
+        combos = []
+        for g in ags:
+            for v in vts:
+                combos.append(f"{g} - {v}")
+        fields = ["day", *combos]
+
+        with open(fn, mode="a") as file:
+            w = csv.DictWriter(file, fields)
+            if self.first:
+                w.writeheader()
+                self.first = False
+
+            days_actions = {"day": t}
+            for action in combined_action:
+                self._mdp.Vaccinate(*action)
+
+                n, g, v = action
+                days_actions[f"{g.name} - {v.name}"] = n
+            w.writerow(days_actions)
 
     @staticmethod
     def random_action(available_vaccines=None):
@@ -230,3 +255,55 @@ class StrideMDPEnv(Env):
     def get_reward(self):
         """Get the reward from the MDP"""
         return _reward_mapping[self.reward](self._mdp)
+
+
+class StrideGroundTruthEnv(Env):
+    def __init__(self, use_inf=True, seed=0):
+        # Super call
+        super(StrideGroundTruthEnv, self).__init__(seed)
+        # Set the seed
+        self.use_inf = use_inf
+        self.seed = seed
+        random.seed(self.seed)
+        np.random.seed(self.seed)
+        self.rng = np.random.default_rng(seed=seed)
+
+        # The distributions file
+        self.config_file = f"../envs/stride_env/real-distributions/{'inf' if self.use_inf else 'hosp'}.csv"
+        if not os.path.isfile(self.config_file):
+            self.config_file = "../" + self.config_file
+        self.rewards = {}
+        self._load_distributions()
+        self.action_wrapper = NoWasteActionWrapper()
+        self.nr_actions = self.action_wrapper.num_actions
+
+    def _load_distributions(self):
+        with open(self.config_file, mode="r") as csv_file:
+            reader = csv.reader(csv_file)
+            for line in reader:
+                # Arm
+                arm = int(line[0])
+                rewards = [float(r) for r in line[1:]]
+                self.rewards[arm] = rewards
+
+    def reset(self, **args):
+        """Reset the environment and return the initial state (or None if no states are used)."""
+        return None
+
+    def step(self, action):
+        """Perform a step of step_size in the simulation.
+
+        Args:
+            action: The action corresponding to a vaccine strategy.
+
+        Returns:
+            state, reward, done, info - feedback from the interaction with the environment.
+        """
+        state = None
+        done = True
+        info = {}
+        # Sample a reward from the given action
+        rewards = self.rewards[action]
+        reward = self.rng.choice(rewards)
+        # Give feedback
+        return state, reward, done, info

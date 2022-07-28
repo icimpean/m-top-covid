@@ -1,21 +1,21 @@
-<!-- This file is part of the Stride software [2021-12-20 13:20:57]-->
+<!-- This file is part of the Stride software [2022-03-02 13:45:13]-->
 <run>
   <age_contact_matrix_file>../../stride_omp_python/data/contact_matrix_flanders_conditional_teachers.xml</age_contact_matrix_file>
   <event_log_level>Transmissions</event_log_level>
   <event_output_file>false</event_output_file>
   <disease_config_file>../../stride_omp_python/data/disease_covid19_lognorm_child.xml</disease_config_file>
   <global_information_policy>NoGlobalInformation</global_information_policy>
-  <holidays_file>../envs/stride_env/config/conf_0/calendar0.csv</holidays_file>
+  <holidays_file>../envs/stride_env/config/conf_3///calendar.csv</holidays_file>
   <immunity_profile>AgeDependent</immunity_profile>
   <immunity_rate>0</immunity_rate>
   <num_days>121</num_days>
   <num_participants_survey>30</num_participants_survey>
-  <num_threads>2</num_threads>
+  <num_threads>8</num_threads>
   <output_cases>true</output_cases>
   <output_persons>false</output_persons>
-  <output_prefix></output_prefix>
+  <output_prefix>runs/conf_3/</output_prefix>
   <output_summary>true</output_summary>
-  <population_file>../../stride_omp_python/data/pop_belgium600k_c500_teachers_censushh.csv</population_file>
+  <population_file>../../FullPop/pop_belgium11M_c500_teachers_censushh.csv</population_file>
   <population_type>default</population_type>
   <rng_seed>0</rng_seed>
   <r0>5.055</r0>
@@ -55,7 +55,7 @@
   <delay_isolation_index>1</delay_isolation_index>
   <delay_contact_tracing>2</delay_contact_tracing>
   <test_false_negative>0.1</test_false_negative>
-  <unitest_pool_allocation>../../stride_omp_python/data/pop_belgium11M_c500_pool_allocation_$unitest_pool_size.csv</unitest_pool_allocation>
+  <unitest_pool_allocation>data/pop_belgium11M_c500_pool_allocation_$unitest_pool_size.csv</unitest_pool_allocation>
   <unitest_fnr>0.01</unitest_fnr>
   <unitest_n_tests_per_day>0</unitest_n_tests_per_day>
   <unitest_pool_size>32</unitest_pool_size>
@@ -63,9 +63,9 @@
   <unitest_isolation_compliance>0.8</unitest_isolation_compliance>
   <num_parallel_workers>50</num_parallel_workers>
   <immunity_link_probability>0</immunity_link_probability>
-  <immunity_distribution_file>../../stride_omp_python/data/immunity_covid_belgium.xml</immunity_distribution_file>
-  <id>test1</id>
+  <immunity_distribution_file>../../FullPop/immunity_covid_belgium.xml</immunity_distribution_file>
   <cnt_reduction_school>0</cnt_reduction_school>
-  <cnt_reduction_school_secondary>0.5</cnt_reduction_school_secondary>
+  <cnt_reduction_school_secondary>0</cnt_reduction_school_secondary>
   <cnt_reduction_school_tertiary>1</cnt_reduction_school_tertiary>
+  <id>test1</id>
 </run>

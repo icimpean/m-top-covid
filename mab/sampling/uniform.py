@@ -1,4 +1,5 @@
 import logging
+import os
 import pickle
 from pathlib import Path
 
@@ -49,12 +50,16 @@ class UniformSampling(Sampling):
 
     def save(self, t, path: Path):
         """Save the sampling method to the given file path"""
-        with open(path, mode="wb") as file:
+        sampling_dir = path / "Sampling"
+        sampling_dir.mkdir(exist_ok=True)
+        sampling_path = sampling_dir / f"t{t}.sampling"
+        with open(sampling_path, mode="wb") as file:
             data = [self.seed, self.rng, self.m, self.has_ranking, self.sample_ordering, self.current_ranking]
             pickle.dump(data, file)
 
     def load(self, t, path: Path):
         """Load the sampling method from the given file path"""
-        with open(path, mode="rb") as file:
+        sampling_path = path / "Sampling" / f"t{t}.sampling"
+        with open(sampling_path, mode="rb") as file:
             data = pickle.load(file)
             self.seed, self.rng, self.m, self.has_ranking, self.sample_ordering, self.current_ranking = data

@@ -84,7 +84,7 @@ class Bandit(object):
 
     def play_(self, t, select_arm):
         """Play an arm selected by the given select_arm function"""
-        time_start = time.time()
+
         # Reset the simulation
         output_prefix = self._log_dir / f"{t}"
         # Create output directories for environments that require it
@@ -97,6 +97,8 @@ class Bandit(object):
             r = 2
 
         for _ in range(r):
+            time_start = time.time()
+
             # Compute the posteriors of the bandit
             self.sampling.compute_posteriors(t)
             # Select the arm with the given selection method
@@ -108,11 +110,11 @@ class Bandit(object):
             # Update the posteriors
             self.sampling.update(arm, reward, t)
 
-        time_end = time.time()
+            time_end = time.time()
 
-        # Log the data
-        entry = self.logger.create_entry(t, arm, reward, time_end - time_start)
-        self.logger.write_data(entry, self.log_file)
+            # Log the data
+            entry = self.logger.create_entry(t, arm, reward, time_end - time_start)
+            self.logger.write_data(entry, self.log_file)
 
         if self.sampling.has_ranking:
             ranking = self.sampling.current_ranking

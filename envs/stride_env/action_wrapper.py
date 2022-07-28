@@ -329,3 +329,12 @@ def latex_table_arms(aw, arms):
     """Print the rows of a LaTeX table to display the underlying arms' allocations."""
     for a in arms:
         print(f"{a} & " + " & ".join(aw.get_vaccine_names(a)), "\\\\\\hline")
+
+
+def latex_all_arms(aw):
+    # new_action = [f"{g.name}: {a.name}" for a, g in zip(action, stride.AllAgeGroups)]
+    groups = [g.name for g in stride.AllAgeGroups]
+    print(f"Arm & {' & '.join(groups)}\\\\\\hline")
+
+    for a in range(aw.num_actions):
+        print(f"{a} & " + " & ".join(aw.get_vaccine_names(a)), "\\\\\\hline")
