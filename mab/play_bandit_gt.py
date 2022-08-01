@@ -98,7 +98,7 @@ def run_arm(parser_args):
     else:
         raise ValueError(parser_args.algorithm)
     # The bandit
-    bandit = Bandit(nr_arms, env, sampling_method, seed=parser_args.seed, log_dir=log_dir, save_interval=100)
+    bandit = Bandit(nr_arms, env, sampling_method, seed=parser_args.seed, log_dir=log_dir, save_interval=1000000)
 
     # Start from checkpoint if given
     timestep = load_checkpoint(parser_args, bandit)
