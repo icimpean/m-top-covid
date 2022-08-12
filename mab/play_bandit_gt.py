@@ -12,6 +12,7 @@ sys.path.append("./")  # for command-line execution to find the other packages (
 from envs.stride_env.stride_env import Reward, StrideGroundTruthEnv
 from args import parser as general_parser, create_stride_env, load_checkpoint
 from bandits import Bandit
+from mab.posteriors.bayesian_gaussian_mixture import BGMPosteriors
 from mab.posteriors.bnpy_gaussian_mixture import BNPYBGMPosteriors
 from mab.posteriors.t_distribution import TDistributionPosteriors
 from mab.posteriors.truncated_t_distribution import TruncatedTDistributionPosteriors
@@ -26,7 +27,7 @@ parser = argparse.ArgumentParser(description="=============== MDP STRIDE =======
                                  formatter_class=argparse.RawDescriptionHelpFormatter,
                                  parents=[general_parser])
 parser.add_argument("--algorithm", type=str, default="BFTS", choices=["BFTS", "AT-LUCB", "Uniform"],)
-parser.add_argument("--posterior", type=str, default="T", choices=["T", "TT", "BGM"],
+parser.add_argument("--posterior", type=str, default="T", choices=["T", "TT", "BGM", "GM"],
                     help="The type of posterior to use")
 parser.add_argument("--top_m", type=int, default=3, help="The m-top to use")
 parser.add_argument("--reward", type=str, default="inf", choices=["inf", "hosp", "hosp_neg"], help="The reward to use")
@@ -62,7 +63,13 @@ def create_posteriors(parser_args, nr_arms):
     # Bayesian Gaussian Mixture
     elif parser_args.posterior == "BGM":
         print("Using Bayesian Gaussian Mixture...")
-        posteriors = BNPYBGMPosteriors(nr_arms, parser_args.seed, k=10, log_dir=Path(parser_args.save_dir).absolute())
+        tol = 0.001
+        posteriors = BNPYBGMPosteriors(nr_arms, parser_args.seed, k=10, tol=tol, log_dir=Path(parser_args.save_dir).absolute())
+        initialise_arms = 1
+    # Sklearn BGM
+    elif parser_args.posterior == "GM":
+        print("Using Sklearn Bayesian Gaussian Mixture...")
+        posteriors = BGMPosteriors(nr_arms, parser_args.seed, k=10, log_dir=Path(parser_args.save_dir).absolute())
         initialise_arms = 1
     # Unsupported
     else:
@@ -112,7 +119,7 @@ def run_arm(parser_args):
 
     t_end = time.time()
     print(f"Experiment took {t_end - t_start} seconds")
-    bandit.save("_end")
+    # bandit.save("_end")
 
 
 if __name__ == '__main__':
@@ -120,18 +127,20 @@ if __name__ == '__main__':
     import logging
     logging.getLogger().setLevel("INFO")
 
-    # algo = "Uniform"
+    # algo = "BFTS"
     # post = "BGM"
     # m = "10"
-    # episodes = "10000"
+    # episodes = "2000"
     # rw = "hosp"
     # seed = 0
     #
     # args = parser.parse_args([
-    #     "no_config.xml", f"../../Data/ground_truth/{rw}/{algo}/{seed}/",
+    #     "no_config.xml", f"../../Data/ground_truth/{rw}/{algo}{'-' + post}/{seed}/",
     #     "--episodes", episodes, "--episode_duration", "120", "--reward", rw, "--reward_type", "norm",
     #     "--posterior", post, "--top_m", m, "--seed", f"{seed}", "--algorithm", algo
     # ])
+    # run_arm(args)
+
     args = parser.parse_args()
     run_arm(args)
 

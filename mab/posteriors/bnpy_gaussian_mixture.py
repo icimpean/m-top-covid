@@ -134,6 +134,10 @@ class BNPYGaussianMixturePosterior(Posterior):
             # precision = 1 / variance; variance = std ** 2
             prec = precisions[k]
             std = np.sqrt(1 / prec)
+            cov = self.get_cov(k)
+            # print("cov, prec, std", cov, prec, std)
+            cov = cov[0][0]
+            std = np.sqrt(cov)
             # Sample mean distribution
             m_sample = self.rng.normal(loc=mu, scale=std)
             # print("\tk:", k, "sample:", m_sample, "w:", w, "mu:", mu, "p:", prec, "std:", std)

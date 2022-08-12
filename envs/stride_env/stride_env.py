@@ -273,6 +273,7 @@ class StrideGroundTruthEnv(Env):
         if not os.path.isfile(self.config_file):
             self.config_file = "../" + self.config_file
         self.rewards = {}
+        self._distributions = {}
         self._load_distributions()
         self.action_wrapper = NoWasteActionWrapper()
         self.nr_actions = self.action_wrapper.num_actions
@@ -285,6 +286,9 @@ class StrideGroundTruthEnv(Env):
                 arm = int(line[0])
                 rewards = [float(r) for r in line[1:]]
                 self.rewards[arm] = rewards
+                std_dev = np.std(rewards)
+                mean = np.mean(rewards)
+                self._distributions[arm] = (mean, std_dev)
 
     def reset(self, **args):
         """Reset the environment and return the initial state (or None if no states are used)."""
@@ -303,7 +307,9 @@ class StrideGroundTruthEnv(Env):
         done = True
         info = {}
         # Sample a reward from the given action
-        rewards = self.rewards[action]
-        reward = self.rng.choice(rewards)
+        # rewards = self.rewards[action]
+        # reward = self.rng.choice(rewards)
+        mean, std_dev = self._distributions[action]
+        reward = self.rng.normal(mean, std_dev)
         # Give feedback
         return state, reward, done, info
