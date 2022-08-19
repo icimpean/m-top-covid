@@ -78,7 +78,7 @@ class StrideMDPEnv(Env):
     """
     def __init__(self, states=False, seed=0, episode_duration=6 * 30, step_size=2 * 30,
                  config_file="./config/run_default.xml", available_vaccines: VaccineSupply = ConstantVaccineSupply(),
-                 reward=Reward.total_infected, reward_type=None,
+                 reward=Reward.total_infected, reward_type=None, reward_factor=1,
                  mRNA_properties: stride.VaccineProperties = stride.LinearVaccineProperties("mRNA vaccine", 0.95, 0.95, 1.00, 42),
                  adeno_properties: stride.VaccineProperties = stride.LinearVaccineProperties("Adeno vaccine", 0.67, 0.67, 1.00, 42),
                  action_wrapper: Type[ActionWrapper] = ActionWrapper):
@@ -111,6 +111,7 @@ class StrideMDPEnv(Env):
         # Reward
         self.reward = reward
         self.reward_type = reward_type
+        self.reward_factor = reward_factor
         self._population_size = 0
         self._age_groups_sizes = {}
         self._at_risk = 0
@@ -246,11 +247,11 @@ class StrideMDPEnv(Env):
         size = self._at_risk if self.reward in [Reward.total_at_risk, Reward.total_at_risk_hosp] \
             else self._population_size
         if self.reward_type == "neg":
-            return -num
+            return -num * self.reward_factor
         elif self.reward_type == "norm":
-            return (size - num) / size
+            return (size - num) / size * self.reward_factor
         else:
-            return num
+            return num * self.reward_factor
 
     def get_reward(self):
         """Get the reward from the MDP"""
@@ -258,11 +259,13 @@ class StrideMDPEnv(Env):
 
 
 class StrideGroundTruthEnv(Env):
-    def __init__(self, use_inf=True, seed=0):
+    def __init__(self, use_inf=True, reward_type="norm", reward_factor=1, seed=0):
         # Super call
         super(StrideGroundTruthEnv, self).__init__(seed)
         # Set the seed
         self.use_inf = use_inf
+        self.reward_factor = reward_factor
+        self.reward_type = reward_type
         self.seed = seed
         random.seed(self.seed)
         np.random.seed(self.seed)
@@ -285,6 +288,11 @@ class StrideGroundTruthEnv(Env):
                 # Arm
                 arm = int(line[0])
                 rewards = [float(r) for r in line[1:]]
+                if self.reward_type == "neg":
+                    at_risk_pop = 8626594
+                    rewards = [int(-(1 - r) * at_risk_pop) for r in rewards]
+                rewards = [r * self.reward_factor for r in rewards]
+
                 self.rewards[arm] = rewards
                 std_dev = np.std(rewards)
                 mean = np.mean(rewards)
@@ -310,6 +318,6 @@ class StrideGroundTruthEnv(Env):
         # rewards = self.rewards[action]
         # reward = self.rng.choice(rewards)
         mean, std_dev = self._distributions[action]
-        reward = self.rng.normal(mean, std_dev)
+        reward = self.rng.normal(mean, std_dev) * self.reward_factor
         # Give feedback
         return state, reward, done, info

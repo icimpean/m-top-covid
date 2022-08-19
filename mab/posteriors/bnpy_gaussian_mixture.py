@@ -15,7 +15,7 @@ class BNPYGaussianMixturePosterior(Posterior):
     installation: https://bnpy.readthedocs.io/en/latest/installation.html
     """
 
-    def __init__(self, k, tol, max_iter, num=0, seed=None, log_dir="./rl-tmp"):
+    def __init__(self, k, tol, max_iter, sF=0.1, num=0, seed=None, log_dir="./rl-tmp"):
         # Super call
         super(BNPYGaussianMixturePosterior, self).__init__(seed)
         # The internal mixture distribution
@@ -27,7 +27,7 @@ class BNPYGaussianMixturePosterior(Posterior):
         self.task_id = 0
 
         self._nLap = max_iter
-        self._sF = 0.1
+        self._sF = sF
         self._ECovMat = "eye"
         self._initname = 'randexamples'
         self._K = k
@@ -50,8 +50,8 @@ class BNPYGaussianMixturePosterior(Posterior):
         # It only serves as a temporary reward distribution until real data is used for training
 
     @staticmethod
-    def new(seed, k, tol, max_iter, num=0, log_dir="/Users/alexandracimpean/Documents/VUB/PhD/COVID19/Code/rl-tmp/"):
-        return BNPYGaussianMixturePosterior(k, tol, max_iter, num, seed, log_dir)
+    def new(seed, k, tol, max_iter, sF=0.1, num=0, log_dir="/Users/alexandracimpean/Documents/VUB/PhD/COVID19/Code/rl-tmp/"):
+        return BNPYGaussianMixturePosterior(k, tol, max_iter, sF, num, seed, log_dir)
 
     def update(self, reward, t):
         self.rewards.append(reward)
@@ -133,11 +133,14 @@ class BNPYGaussianMixturePosterior(Posterior):
             mu = means[k][0]
             # precision = 1 / variance; variance = std ** 2
             prec = precisions[k]
-            std = np.sqrt(1 / prec)
-            cov = self.get_cov(k)
-            # print("cov, prec, std", cov, prec, std)
-            cov = cov[0][0]
-            std = np.sqrt(cov)
+            # std = np.sqrt(1 / prec)
+            cov = self.get_cov(k)[0, 0]
+            std = np.sqrt(1 / prec * cov)
+
+            # cov = self.get_cov(k)
+            # # print("cov, prec, std", cov, prec, std)
+            # cov = cov[0][0]
+            # std = np.sqrt(cov)
             # Sample mean distribution
             m_sample = self.rng.normal(loc=mu, scale=std)
             # print("\tk:", k, "sample:", m_sample, "w:", w, "mu:", mu, "p:", prec, "std:", std)
@@ -169,12 +172,14 @@ class BNPYGaussianMixturePosterior(Posterior):
 class BNPYBGMPosteriors(SinglePosteriors):
     """A Bayesian Gaussian Mixture Posterior for a given number of bandit arms."""
 
-    def __init__(self, nr_arms, seed=None, k=2, tol=0.001, max_iter=100, log_dir="./"):
+    def __init__(self, nr_arms, seed=None, k=2, tol=0.001, max_iter=100, sF=0.1, log_dir="./"):
         self.k = k
         self.tol = tol
         self.max_iter = max_iter
+        self.sF = sF
         self.log_dir = log_dir
         super(BNPYBGMPosteriors, self).__init__(nr_arms, BNPYGaussianMixturePosterior, seed)
 
     def _create_posteriors(self, seed, posterior_type):
-        return [posterior_type.new(seed + i, self.k, self.tol, self.max_iter, i, self.log_dir) for i in range(self.nr_arms)]
+        return [posterior_type.new(seed + i, self.k, self.tol, self.max_iter, self.sF, i, self.log_dir)
+                for i in range(self.nr_arms)]

@@ -6,7 +6,6 @@ import time
 from pathlib import Path
 
 import sys
-
 sys.path.append("./")  # for command-line execution to find the other packages (e.g. envs)
 
 from envs.stride_env.stride_env import Reward, StrideGroundTruthEnv
@@ -32,6 +31,8 @@ parser.add_argument("--posterior", type=str, default="T", choices=["T", "TT", "B
 parser.add_argument("--top_m", type=int, default=3, help="The m-top to use")
 parser.add_argument("--reward", type=str, default="inf", choices=["inf", "hosp", "hosp_neg"], help="The reward to use")
 parser.add_argument("--reward_type", type=str, default="norm", choices=["norm", "neg"], help="The reward type to use")
+parser.add_argument("--reward_factor", type=int, default=1, help="The reward factor to multiply the reward with")
+parser.add_argument("--sF", type=float, default=0.1, help="The scaling factor for the gaussian mixture prior")
 
 
 def get_reward(parser_args):
@@ -64,7 +65,9 @@ def create_posteriors(parser_args, nr_arms):
     elif parser_args.posterior == "BGM":
         print("Using Bayesian Gaussian Mixture...")
         tol = 0.001
-        posteriors = BNPYBGMPosteriors(nr_arms, parser_args.seed, k=10, tol=tol, log_dir=Path(parser_args.save_dir).absolute())
+        sF = parser_args.sF
+        posteriors = BNPYBGMPosteriors(nr_arms, parser_args.seed, k=10, tol=tol, sF=sF,
+                                       log_dir=Path(parser_args.save_dir).absolute())
         initialise_arms = 1
     # Sklearn BGM
     elif parser_args.posterior == "GM":
@@ -77,10 +80,10 @@ def create_posteriors(parser_args, nr_arms):
     return posteriors, initialise_arms
 
 
-def create_stride_env_gt(parser_args, reward=Reward.total_at_risk, reward_type='norm'):
+def create_stride_env_gt(parser_args, reward=Reward.total_at_risk, reward_type='norm', reward_factor=1):
     # The type of environment
     use_inf = reward == Reward.total_at_risk
-    env = StrideGroundTruthEnv(use_inf, seed=parser_args.seed)
+    env = StrideGroundTruthEnv(use_inf, reward_type=reward_type, reward_factor=reward_factor, seed=parser_args.seed)
     return env
 
 
@@ -89,7 +92,8 @@ def run_arm(parser_args):
 
     # The type of environment
     reward = get_reward(parser_args)
-    env = create_stride_env_gt(parser_args, reward=reward, reward_type=parser_args.reward_type)
+    env = create_stride_env_gt(parser_args, reward=reward, reward_type=parser_args.reward_type,
+                               reward_factor=parser_args.reward_factor)
     nr_arms = env.action_wrapper.num_actions
 
     # The sampling method
@@ -132,12 +136,17 @@ if __name__ == '__main__':
     # m = "10"
     # episodes = "2000"
     # rw = "hosp"
+    # r_type = "norm"
+    # rf = "1"
+    # sF = "0.001"
     # seed = 0
     #
     # args = parser.parse_args([
-    #     "no_config.xml", f"../../Data/ground_truth/{rw}/{algo}{'-' + post}/{seed}/",
-    #     "--episodes", episodes, "--episode_duration", "120", "--reward", rw, "--reward_type", "norm",
-    #     "--posterior", post, "--top_m", m, "--seed", f"{seed}", "--algorithm", algo
+    #     "no_config.xml", f"../../Data/ground_truth/{rw}{'-' + r_type if r_type != 'norm' else ''}/"
+    #                      f"{algo}{'-' + post}{'-' + rf if float(rf) != 1 else ''}-{sF}/{seed}/",
+    #     "--episodes", episodes, "--episode_duration", "120", "--reward", rw, "--reward_type", r_type,
+    #     "--reward_factor", rf, "--sF", sF,
+    #     "--posterior", post, "--top_m", m, "--seed", f"{seed}", "--algorithm", algo,
     # ])
     # run_arm(args)
 

@@ -27,6 +27,8 @@ parser.add_argument("--posterior", type=str, default="T", choices=["T", "TT", "B
 parser.add_argument("--top_m", type=int, default=3, help="The m-top to use")
 parser.add_argument("--reward", type=str, default="inf", choices=["inf", "hosp", "hosp_neg"], help="The reward to use")
 parser.add_argument("--reward_type", type=str, default="norm", choices=["norm", "neg"], help="The reward type to use")
+parser.add_argument("--reward_factor", type=int, default=1, help="The reward factor to multiply the reward with")
+parser.add_argument("--sF", type=float, default=0.1, help="The scaling factor for the gaussian mixture prior")
 
 
 def get_reward(parser_args):
@@ -58,7 +60,10 @@ def create_posteriors(parser_args, nr_arms):
     # Bayesian Gaussian Mixture
     elif parser_args.posterior == "BGM":
         print("Using Bayesian Gaussian Mixture...")
-        posteriors = BNPYBGMPosteriors(nr_arms, parser_args.seed, k=10, log_dir=Path(parser_args.save_dir).absolute())
+        tol = 0.001
+        sF = parser_args.sF
+        posteriors = BNPYBGMPosteriors(nr_arms, parser_args.seed, k=10, tol=tol, sF=sF,
+                                       log_dir=Path(parser_args.save_dir).absolute())
         initialise_arms = 1
     # Unsupported
     else:
@@ -66,7 +71,7 @@ def create_posteriors(parser_args, nr_arms):
     return posteriors, initialise_arms
 
 
-def run_arm(parser_args):
+def run_bandit(parser_args):
     t_start = time.time()
 
     # The type of environment
@@ -119,4 +124,4 @@ if __name__ == '__main__':
     #     # "-c", "_time", "-t", "776",
     # ])
 
-    run_arm(args)
+    run_bandit(args)
