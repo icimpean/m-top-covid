@@ -75,13 +75,14 @@ class StrideMDPEnv(Env):
         mRNA_properties: The properties of the mRNA vaccines
         adeno_properties: The properties of the Adeno vaccines
         action_wrapper: (Optional) The action wrapper to use to translate arms into vaccination requests.
+        is_childless: (Optional) Whether the actions contain children.
     """
     def __init__(self, states=False, seed=0, episode_duration=6 * 30, step_size=2 * 30,
                  config_file="./config/run_default.xml", available_vaccines: VaccineSupply = ConstantVaccineSupply(),
                  reward=Reward.total_infected, reward_type=None, reward_factor=1,
                  mRNA_properties: stride.VaccineProperties = stride.LinearVaccineProperties("mRNA vaccine", 0.95, 0.95, 1.00, 42),
                  adeno_properties: stride.VaccineProperties = stride.LinearVaccineProperties("Adeno vaccine", 0.67, 0.67, 1.00, 42),
-                 action_wrapper: Type[ActionWrapper] = ActionWrapper):
+                 action_wrapper: Type[ActionWrapper] = ActionWrapper, is_childless=False):
         # Super call
         super(StrideMDPEnv, self).__init__(seed)
         # Set the seed
@@ -107,6 +108,7 @@ class StrideMDPEnv(Env):
         # Action space for an action
         self.action_wrapper = action_wrapper(available_vaccines)
         self.nr_arms = len(stride.AllVaccineTypes) ** len(stride.AllAgeGroups)
+        self.is_childless = is_childless
 
         # Reward
         self.reward = reward
@@ -143,9 +145,9 @@ class StrideMDPEnv(Env):
         seed = seed if seed is not None else self.seed
         # Create a new simulation
         self._mdp.Create(self.config_file, self.mRNA_properties, self.adeno_properties,
-                         seed, output_dir, output_prefix)
+                         seed, output_dir, output_prefix, self.is_childless)
         self._population_size = self._mdp.GetPopulationSize()
-        self._age_groups_sizes = self._mdp.GetAgeGroupSizes()
+        self._age_groups_sizes = self._mdp.GetAgeGroupSizes() if not self.is_childless else self._mdp.GetChildlessAgeGroupSizes()
         self._at_risk = self._mdp.GetAtRisk()
         print("at risk:", self._at_risk)
         print(self._age_groups_sizes)
@@ -172,15 +174,18 @@ class StrideMDPEnv(Env):
         print(f"Chosen action {action}")
         # print(f"Population size: {self._population_size}")
         # print(f"Age groups {self._mdp.GetAgeGroupSizes()}")
+        print(f"Population size: {self._population_size}")
+        print(f"Childless Age groups {self._mdp.GetChildlessAgeGroupSizes()}")
         state = reward = None
         info = {}
         # Execute the action to vaccinate and simulate for as many days as required
         for t in range(self.step_size):
             # If an action is given (!= None), vaccinate
             if action is not None:
+                group_sizes = self._mdp.GetAgeGroupSizes() if not self.is_childless else self._mdp.GetChildlessAgeGroupSizes()
                 combined_action = self.action_wrapper.get_combined_action(action, self._timestep + t,
                                                                           self._population_size,
-                                                                          self._mdp.GetAgeGroupSizes())
+                                                                          group_sizes)
                 self._vaccinate(t, action, combined_action)
             # Simulate the day and get the reward
             self._mdp.SimulateDay()
@@ -192,6 +197,12 @@ class StrideMDPEnv(Env):
             #       f"at risk at start: {self._at_risk}, (temp) reward: {self._transform_reward(reward)}")
             # print(f"Unvaccinated age groups:", self._mdp.GetAgeGroupSizes())
             # print(f"Vaccinated age groups:", self._mdp.GetVaccinatedAgeGroups())
+            # print(f"Unvaccinated age groups:", self._mdp.GetChildlessAgeGroupSizes())
+            # print(f"Vaccinated age groups:", self._mdp.GetVaccinatedChildlessAgeGroups())
+
+        if self.is_childless:
+            print(f"Unvaccinated age groups:", self._mdp.GetChildlessAgeGroupSizes())
+            print(f"Vaccinated age groups:", self._mdp.GetVaccinatedChildlessAgeGroups())
 
         # Transform the reward as requested
         reward = self._transform_reward(reward)
@@ -203,28 +214,34 @@ class StrideMDPEnv(Env):
         return state, reward, done, info
 
     def _vaccinate(self, t, action, combined_action):
-        fn = f"vaccine_distributions_{action}.csv"
-        vts = [v.name for v in stride.AllVaccineTypes]
-        ags = [g.name for g in stride.AllAgeGroups]
-        combos = []
-        for g in ags:
-            for v in vts:
-                combos.append(f"{g} - {v}")
-        fields = ["day", *combos]
-
-        with open(fn, mode="a") as file:
-            w = csv.DictWriter(file, fields)
-            if self.first:
-                w.writeheader()
-                self.first = False
-
-            days_actions = {"day": t}
-            for action in combined_action:
+        for action in combined_action:
+            if not self.is_childless:
                 self._mdp.Vaccinate(*action)
+            else:
+                self._mdp.VaccinateChildless(*action)
 
-                n, g, v = action
-                days_actions[f"{g.name} - {v.name}"] = n
-            w.writerow(days_actions)
+        # fn = f"vaccine_distributions_{action}.csv"
+        # vts = [v.name for v in stride.AllVaccineTypes]
+        # ags = [g.name for g in (stride.AllAgeGroups if not self.is_childless else stride.AllChildlessAgeGroups)]
+        # combos = []
+        # for g in ags:
+        #     for v in vts:
+        #         combos.append(f"{g} - {v}")
+        # fields = ["day", *combos]
+        #
+        # with open(fn, mode="a") as file:
+        #     w = csv.DictWriter(file, fields)
+        #     if self.first:
+        #         w.writeheader()
+        #         self.first = False
+        #
+        #     days_actions = {"day": t}
+        #     for action in combined_action:
+        #         self._mdp.Vaccinate(*action)
+        #
+        #         n, g, v = action
+        #         days_actions[f"{g.name} - {v.name}"] = n
+        #     w.writerow(days_actions)
 
     @staticmethod
     def random_action(available_vaccines=None):
