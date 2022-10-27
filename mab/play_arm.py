@@ -14,9 +14,7 @@ from args import parser as general_parser, load_checkpoint, create_stride_env
 
 # Play a single arm multiple times
 parser = argparse.ArgumentParser(description="=============== MDP STRIDE ===============",
-                                 epilog="example:\n\tpython3 mab/play_arm.py "
-                                        "../envs/stride_env/config/conf_0/config_bandit1_600k.xml "
-                                        "../../Data/debug/arms_{a}/ 20 0 --episode_duration 5",
+                                 epilog="example:\n\tpython3 mab/play_arm.py ./envs/stride_env/config/conf_0/config.xml ./results/top_10/TT/ --arm 0 --episodes 2000 --episode_duration 120 --seed 123",
                                  formatter_class=argparse.RawDescriptionHelpFormatter,
                                  parents=[general_parser])
 parser.add_argument("--arm", type=str, required=True, help="The arm to play")

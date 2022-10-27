@@ -22,7 +22,7 @@ from mab.sampling.uniform import UniformSampling
 
 # Play a single arm multiple times
 parser = argparse.ArgumentParser(description="=============== MDP STRIDE ===============",
-                                 epilog="example:\n\tpython3 mab/play_bandit.py envs/stride_env/config/run_default.xml ../runs/test_run0/ 60 500",
+                                 epilog="example:\n\tpython3 mab/play_bandit_gt.py ./envs/stride_env/config/conf_0/config.xml ./results/top_10/TT/ --episodes 2000 --episode_duration 120 --reward inf --reward_type norm --posterior TT --top_m 10 --seed 123",
                                  formatter_class=argparse.RawDescriptionHelpFormatter,
                                  parents=[general_parser])
 parser.add_argument("--algorithm", type=str, default="BFTS", choices=["BFTS", "AT-LUCB", "Uniform"],)
@@ -152,23 +152,3 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     run_arm(args)
-
-    # import csv
-    # header = ["seed", "episodes", "episode_duration", "reward", "reward_type", "posterior", "top_m", "algo"]
-    #
-    # episodes = 10000
-    # episode_duration = 120
-    # post = "BGM"
-    # m = "10"
-    # reward_type = "norm"
-    # for reward in ["inf", "hosp"]:
-    #     rows = []
-    #     for seed in range(100):
-    #         for algo in ["Uniform", "AT-LUCB", "BFTS"]:
-    #             row = [seed, episodes, episode_duration, reward, reward_type, post if algo == "BFTS" else "", m, algo]
-    #             rows.append(row)
-    #
-    #     with open(f"./{reward}_gt.csv", mode="w") as file:
-    #         writer = csv.writer(file)
-    #         writer.writerow(header)
-    #         writer.writerows(rows)

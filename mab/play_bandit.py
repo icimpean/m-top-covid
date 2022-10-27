@@ -19,7 +19,7 @@ from sampling.bfts import BFTS
 
 # Play a single arm multiple times
 parser = argparse.ArgumentParser(description="=============== MDP STRIDE ===============",
-                                 epilog="example:\n\tpython3 mab/play_bandit.py envs/stride_env/config/run_default.xml ../runs/test_run0/ 60 500",
+                                 epilog="example:\n\tpython3 mab/play_bandit.py ../envs/stride_env/config/conf_0/config.xml ./results/top_10/TT/ --episodes 2000 --episode_duration 120 --reward inf --reward_type norm --posterior TT --top_m 10 --seed 123",
                                  formatter_class=argparse.RawDescriptionHelpFormatter,
                                  parents=[general_parser])
 parser.add_argument("--posterior", type=str, default="T", choices=["T", "TT", "BGM"],
@@ -108,20 +108,13 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     # post = "TT"
-    # post = "BGM"
     # m = "10"
     # args = parser.parse_args([
-    #     "../envs/stride_env/config/conf_0/config.xml", f"../../Data/debug/test_{post}/",
-    #     "--episodes", "2000", "--episode_duration", "20", "--reward", "hosp_neg", "--reward_type", "neg", "--posterior", post, "--top_m", m, "--seed", "123",
+    #     "./envs/stride_env/config/conf_0/config.xml", f"./results/top_{m}/{post}/",
+    #     "--episodes", "2000", "--episode_duration", "120", "--reward", "hosp", "--reward_type", "norm",
+    #     "--posterior", post, "--top_m", m, "--seed", "123",
     #     # "-l", "30", "-m", "5",
     #     # "-c", "790", "-t", "791",
-    # ])
-
-    # args = parser.parse_args([
-    #     "../envs/stride_env/config/conf_0_old/config_bandit1_600k.xml", f"../../Data/debug/flute_bandit_{post}/",
-    #     "--episodes", "1000", "--episode_duration", "5", "--reward", "inf", "--posterior", post, "--top_m", m,
-    #     # "-l", "30", "-m", "5",
-    #     # "-c", "_time", "-t", "776",
     # ])
 
     run_bandit(args)
