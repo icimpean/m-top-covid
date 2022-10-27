@@ -427,6 +427,73 @@ class NoChildrenNoWasteActionWrapper(NoWasteActionWrapper):
         # Return the actions
         return actions
 
+    @staticmethod
+    def _divide_remainder(available, vaccine_type, vaccine_per_group, group_sizes):
+        # Priority
+        # 1. Give vaccine to requested age group (handled by _divide_vaccines)
+        # 2. Give vaccines to other groups using the same vaccine type (handled by _divide_vaccines)
+        # 3. Give vaccine to the other age groups with no vaccines
+        # 4. Give to any age groups with non-vaccinated individuals
+
+        # 3. Get all other age groups that don't receive any vaccine
+        remainder_groups = []
+        for idx, v_type in enumerate(vaccine_per_group):
+            group = NoChildrenNoWasteActionWrapper._age_groups[idx]
+            # No vaccine groups get remainder
+            if v_type == stride.VaccineType.noVaccine and group_sizes[group] != 0:
+                remainder_groups.append(idx)
+        # 4. any group with not vaccinated individuals
+        if len(remainder_groups) == 0:
+            for idx, v_type in enumerate(vaccine_per_group):
+                group = NoChildrenNoWasteActionWrapper._age_groups[idx]
+                # Not groups with the current vaccine type
+                if v_type != vaccine_type and group_sizes[group] != 0:
+                    remainder_groups.append(idx)
+
+        # Only one group gets a vaccine
+        if len(remainder_groups) == 1:
+            # Only one group gets a vaccine
+            divided_vaccines = [available]
+        # Divide over all remainder groups
+        else:
+            counts, overflow = NoChildrenNoWasteActionWrapper._divide(available, remainder_groups, group_sizes)
+            divided_vaccines = counts
+
+        # Create actions
+        actions = []
+        for group, div in zip(remainder_groups, divided_vaccines):
+            action = (div, NoChildrenNoWasteActionWrapper._age_groups[group], vaccine_type)  # availableVaccines, ageGroup, vaccineType
+            actions.append(action)
+
+        # Return the actions
+        return actions
+
+    def export_csv(self, file_path):
+        """Export the arms from the action wrapper as a CVS file"""
+        age_groups = [g.name for g in NoChildrenNoWasteActionWrapper._age_groups]
+        fields = ["Arm", *age_groups]
+        with open(file_path, mode="w") as file:
+            writer = csv.writer(file)
+            writer.writerow(fields)
+            for arm in range(self.num_actions):
+                row = [arm, *self.get_vaccine_names(arm)]
+                writer.writerow(row)
+
+    @staticmethod
+    def _nums(action):
+        nums = [0 for v_type in stride.AllVaccineTypes]
+        for g in action:
+            nums[g] += 1
+        return nums
+
+    @staticmethod
+    def _nums2(action):
+        nums = ["0" for age in NoChildrenNoWasteActionWrapper._age_groups]
+        for i, v in enumerate(action):
+            if v != stride.VaccineType.noVaccine:
+                nums[i] = "1"
+        return "".join(nums)
+
 
 def print_arm(aw, arm):
     """Print the arm as the vaccine types per age group."""
