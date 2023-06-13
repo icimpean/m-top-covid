@@ -8,6 +8,7 @@ from pathlib import Path
 import sys
 sys.path.append("./")  # for command-line execution to find the other packages (e.g. envs)
 
+from envs.stride_env.action_wrapper import NoChildrenNoWasteActionWrapper, NoWasteActionWrapper
 from envs.stride_env.stride_env import Reward
 from args import parser as general_parser, create_stride_env, load_checkpoint
 from bandits import Bandit
@@ -29,6 +30,8 @@ parser.add_argument("--reward", type=str, default="inf", choices=["inf", "hosp",
 parser.add_argument("--reward_type", type=str, default="norm", choices=["norm", "neg"], help="The reward type to use")
 parser.add_argument("--reward_factor", type=int, default=1, help="The reward factor to multiply the reward with")
 parser.add_argument("--sF", type=float, default=0.1, help="The scaling factor for the gaussian mixture prior")
+parser.add_argument('--childless', dest='childless', action='store_true', help="Exclude children from vaccines")
+parser.add_argument("--uptake", type=float, default=1.0, help="The vaccine uptake in the population")
 
 
 def get_reward(parser_args):
@@ -76,7 +79,9 @@ def run_bandit(parser_args):
 
     # The type of environment
     reward = get_reward(parser_args)
-    env = create_stride_env(parser_args, reward=reward, reward_type=parser_args.reward_type)
+    env = create_stride_env(parser_args, reward=reward, reward_type=parser_args.reward_type,
+                            is_childless=parser_args.childless, uptake=parser_args.uptake,
+                            action_wrapper=NoChildrenNoWasteActionWrapper if parser_args.childless else NoWasteActionWrapper)
     nr_arms = env.action_wrapper.num_actions
 
     # The sampling method
@@ -109,10 +114,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
     # post = "TT"
     # m = "10"
+    # uptake = 0.7
     # args = parser.parse_args([
     #     "./envs/stride_env/config/conf_0/config.xml", f"./results/top_{m}/{post}/",
     #     "--episodes", "2000", "--episode_duration", "120", "--reward", "hosp", "--reward_type", "norm",
     #     "--posterior", post, "--top_m", m, "--seed", "123",
+    #     "--uptake", f"{uptake}",
+    #     # "--childless"
     #     # "-l", "30", "-m", "5",
     #     # "-c", "790", "-t", "791",
     # ])

@@ -11,7 +11,6 @@ from envs.stride_env.action_wrapper import NoWasteActionWrapper
 from envs.stride_env.stride_env import StrideMDPEnv, Reward
 from args import parser as general_parser
 from bandits.random_bandit import RandomBandit
-from sampling.random import RandomSampling
 from resources.vaccine_supply import ObservedVaccineSupply
 
 
@@ -48,11 +47,8 @@ def run_arm(parser_args):
                        action_wrapper=NoWasteActionWrapper
                        )
 
-    # The sampling method
-    sampling_method = RandomSampling
     # Random bandit (random bandit stores no posteriors, only used to play the arms requested by the commandline)
-    bandit = RandomBandit(env.nr_arms, env, sampling_method, seed=seed,
-                          save_interval=100, log_dir=parser_args.save_dir)
+    bandit = RandomBandit(env.nr_arms, env, seed=seed, save_interval=100, log_dir=parser_args.save_dir)
 
     # Let the bandit run for the given number of episodes
     try:

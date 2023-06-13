@@ -9,6 +9,7 @@ import sys
 sys.path.append("./")  # for command-line execution to find the other packages (e.g. envs)
 
 from mab.bandits.random_bandit import RandomBandit
+from envs.stride_env.action_wrapper import NoChildrenNoWasteActionWrapper, NoWasteActionWrapper
 from envs.stride_env.stride_env import Reward
 from args import parser as general_parser, load_checkpoint, create_stride_env
 
@@ -18,6 +19,8 @@ parser = argparse.ArgumentParser(description="=============== MDP STRIDE =======
                                  formatter_class=argparse.RawDescriptionHelpFormatter,
                                  parents=[general_parser])
 parser.add_argument("--arm", type=str, required=True, help="The arm to play")
+parser.add_argument('--childless', dest='childless', action='store_true', help="Exclude children from vaccines")
+parser.add_argument("--uptake", type=float, default=1.0, help="The vaccine uptake in the population")
 
 
 def run_arm(parser_args):
@@ -29,7 +32,8 @@ def run_arm(parser_args):
     arm = int(arm) if arm.isdigit() else None
 
     # The type of environment
-    env = create_stride_env(parser_args, reward=Reward.total_at_risk)
+    env = create_stride_env(parser_args, reward=Reward.total_at_risk, is_childless=parser_args.childless,
+                            uptake=parser_args.uptake, action_wrapper=NoChildrenNoWasteActionWrapper if parser_args.childless else NoWasteActionWrapper)
 
     # Random bandit (random bandit stores no posteriors, only used to play the arms requested by the commandline)
     bandit = RandomBandit(env.nr_arms, env, seed=parser_args.seed, save_interval=10, log_dir=parser_args.save_dir)

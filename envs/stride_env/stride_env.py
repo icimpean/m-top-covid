@@ -82,7 +82,7 @@ class StrideMDPEnv(Env):
                  reward=Reward.total_infected, reward_type=None, reward_factor=1,
                  mRNA_properties: stride.VaccineProperties = stride.LinearVaccineProperties("mRNA vaccine", 0.95, 0.95, 1.00, 42),
                  adeno_properties: stride.VaccineProperties = stride.LinearVaccineProperties("Adeno vaccine", 0.67, 0.67, 1.00, 42),
-                 action_wrapper: Type[ActionWrapper] = ActionWrapper, is_childless=False):
+                 action_wrapper: Type[ActionWrapper] = ActionWrapper, is_childless=False, uptake=1):
         # Super call
         super(StrideMDPEnv, self).__init__(seed)
         # Set the seed
@@ -109,6 +109,7 @@ class StrideMDPEnv(Env):
         self.action_wrapper = action_wrapper(available_vaccines)
         self.nr_arms = len(stride.AllVaccineTypes) ** len(stride.AllAgeGroups)
         self.is_childless = is_childless
+        self.uptake = uptake
 
         # Reward
         self.reward = reward
@@ -145,7 +146,7 @@ class StrideMDPEnv(Env):
         seed = seed if seed is not None else self.seed
         # Create a new simulation
         self._mdp.Create(self.config_file, self.mRNA_properties, self.adeno_properties,
-                         seed, output_dir, output_prefix, self.is_childless)
+                         seed, output_dir, output_prefix, self.is_childless, self.uptake)
         self._population_size = self._mdp.GetPopulationSize()
         self._age_groups_sizes = self._mdp.GetAgeGroupSizes() if not self.is_childless else self._mdp.GetChildlessAgeGroupSizes()
         self._at_risk = self._mdp.GetAtRisk()
@@ -172,10 +173,11 @@ class StrideMDPEnv(Env):
             state, reward, done, info - feedback from the interaction with the environment.
         """
         print(f"Chosen action {action}")
-        # print(f"Population size: {self._population_size}")
-        # print(f"Age groups {self._mdp.GetAgeGroupSizes()}")
         print(f"Population size: {self._population_size}")
-        print(f"Childless Age groups {self._mdp.GetChildlessAgeGroupSizes()}")
+        if self.is_childless:
+            print(f"Childless Age groups {self._mdp.GetChildlessAgeGroupSizes()}")
+        else:
+            print(f"Age groups {self._mdp.GetAgeGroupSizes()}")
         state = reward = None
         info = {}
         # Execute the action to vaccinate and simulate for as many days as required
