@@ -60,7 +60,14 @@ class TruncatedTDistributionPosterior(TDistributionPosterior):
         if n < self.times_to_init_:
             return mu
         else:
-            sigma = np.sqrt(np.var(self.rewards)/self.freedom(n))
+            # Special case where all rewards == mu leads to error
+            same_reward = all(r == self.rewards[0] for r in self.rewards)
+            if same_reward:
+                rewards = self.rewards[:]
+                rewards[0] += 1e-15
+                sigma = np.sqrt(np.var(rewards) / self.freedom(n))
+            else:
+                sigma = np.sqrt(np.var(self.rewards)/self.freedom(n))
             m = self.truncated_t_mean(self.rewards, mu, sigma)
             return m*sigma + mu
 
