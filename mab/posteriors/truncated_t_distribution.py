@@ -66,6 +66,7 @@ class TruncatedTDistributionPosterior(TDistributionPosterior):
                 rewards = self.rewards[:]
                 rewards[0] += 1e-15
                 sigma = np.sqrt(np.var(rewards) / self.freedom(n))
+                mu = np.mean(rewards)
             else:
                 sigma = np.sqrt(np.var(self.rewards)/self.freedom(n))
             m = self.truncated_t_mean(self.rewards, mu, sigma)
