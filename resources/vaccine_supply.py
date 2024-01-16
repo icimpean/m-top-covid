@@ -12,6 +12,9 @@ class VaccineSupply(object):
     # All vaccine types, except noVaccine
     _v_types = stride.AllVaccineTypes[1:]
 
+    def __init__(self):
+        self._vaccine_counts = None
+
     def get_available_vaccines(self, days, pop_size=None):
         """Get the available vaccines for the given days.
 
@@ -23,6 +26,10 @@ class VaccineSupply(object):
             available_vaccines, the available vaccines for those days, per vaccine type.
         """
         raise NotImplementedError
+
+    def get_index(self, day):
+        # Avoid indexing errors for missing days: use the last day as counts
+        return day if day < len(self._vaccine_counts) else -1
 
 
 class ConstantVaccineSupply(VaccineSupply):
@@ -104,13 +111,11 @@ class ObservedVaccineSupply(VaccineSupply):
             self._last_update = last_updated
 
     def get_available_vaccines(self, days, pop_size=None):
-        # Avoid indexing errors for missing days: use the last day as counts
-        get_index = lambda d: d if d < len(self._vaccine_counts) else -1
         # If a population size is given, calculate the vaccine counts
         if pop_size is None:
-            available_vaccines = [self._vaccine_counts[get_index(day)] for day in days]
+            available_vaccines = [self._vaccine_counts[self.get_index(day)] for day in days]
         else:
-            available_vaccines = [self._vaccine_counts[get_index(day)].copy() for day in days]
+            available_vaccines = [self._vaccine_counts[self.get_index(day)].copy() for day in days]
             for one_day in available_vaccines:
                 for v_type in one_day:
                     one_day[v_type] = round(one_day[v_type] * pop_size / self.population_size)

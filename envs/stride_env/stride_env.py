@@ -82,7 +82,8 @@ class StrideMDPEnv(Env):
                  reward=Reward.total_infected, reward_type=None, reward_factor=1,
                  mRNA_properties: stride.VaccineProperties = stride.LinearVaccineProperties("mRNA vaccine", 0.95, 0.95, 1.00, 42),
                  adeno_properties: stride.VaccineProperties = stride.LinearVaccineProperties("Adeno vaccine", 0.67, 0.67, 1.00, 42),
-                 action_wrapper: Type[ActionWrapper] = ActionWrapper, is_childless=False, uptake=1):
+                 action_wrapper: Type[ActionWrapper] = ActionWrapper, is_childless=False, uptake=1,
+                 two_doses=False, second_dose_day=28):
         # Super call
         super(StrideMDPEnv, self).__init__(seed)
         # Set the seed
@@ -106,7 +107,8 @@ class StrideMDPEnv(Env):
         self.mRNA_properties = mRNA_properties
         self.adeno_properties = adeno_properties
         # Action space for an action
-        self.action_wrapper = action_wrapper(available_vaccines)
+        self.action_wrapper = action_wrapper(available_vaccines, two_doses=two_doses, second_dose_day=second_dose_day,
+                                             last_sim_day=episode_duration+1)
         self.nr_arms = len(stride.AllVaccineTypes) ** len(stride.AllAgeGroups)
         self.is_childless = is_childless
         self.uptake = uptake

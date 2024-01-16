@@ -47,7 +47,8 @@ def load_checkpoint(parser_args, bandit):
 
 
 def create_stride_env(parser_args, reward=Reward.total_at_risk, reward_type='norm',
-                      is_childless=False, action_wrapper=NoWasteActionWrapper, uptake=1):
+                      is_childless=False, action_wrapper=NoWasteActionWrapper, uptake=1,
+                      two_doses=False, second_dose_day=28):
     # The vaccine supply
     # Weekly deliveries, based on https://covid-vaccinatie.be/en
     vaccine_supply = ObservedVaccineSupply(starting_date="2021-01-01", days=parser_args.episode_duration,
@@ -61,5 +62,6 @@ def create_stride_env(parser_args, reward=Reward.total_at_risk, reward_type='nor
                        reward=reward, reward_type=reward_type,
                        mRNA_properties=stride.LinearVaccineProperties("mRNA vaccine", 0.95, 0.95, 1.00, 42),
                        adeno_properties=stride.LinearVaccineProperties("Adeno vaccine", 0.67, 0.67, 1.00, 42),
-                       action_wrapper=action_wrapper, is_childless=is_childless, uptake=uptake)
+                       action_wrapper=action_wrapper, is_childless=is_childless, uptake=uptake,
+                       two_doses=two_doses, second_dose_day=second_dose_day)
     return env

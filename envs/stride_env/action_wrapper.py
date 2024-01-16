@@ -1,3 +1,5 @@
+import copy
+
 # noinspection PyUnresolvedReferences
 import pylibstride as stride
 
@@ -6,7 +8,7 @@ import numpy as np
 import random
 from itertools import product, groupby
 
-from resources.vaccine_supply import ConstantVaccineSupply, VaccineSupply
+from resources.vaccine_supply import ConstantVaccineSupply, VaccineSupply, ObservedVaccineSupply
 
 
 class ActionWrapper(object):
@@ -20,12 +22,15 @@ class ActionWrapper(object):
     _v_types = stride.AllVaccineTypes[1:]
     _age_groups = stride.AllAgeGroups
 
-    def __init__(self, available_vaccines: VaccineSupply = ConstantVaccineSupply()):
+    def __init__(self, available_vaccines: VaccineSupply = ConstantVaccineSupply(), two_doses=False, second_dose_day=28, last_sim_day=365):
         # Store the arguments
         self.available_vaccines = available_vaccines
         # Action space
         self._all_actions = self._create_action_array()
         self.num_actions = len(self._all_actions)
+        self.two_doses = two_doses
+        self.second_dose_day = second_dose_day
+        self.last_sim_day = last_sim_day
 
     def get_raw_action(self, arm):
         """Get the raw action, corresponding to a vaccine type per age group.
@@ -67,8 +72,38 @@ class ActionWrapper(object):
         return self._divide_vaccines_day(vaccine_per_group, day, pop_size, group_sizes)
 
     def _divide_vaccines_day(self, vaccine_per_group, day, pop_size, group_sizes):
-        available_vaccines = self.available_vaccines.get_available_vaccines([day], pop_size)[0]
-        actions = self._divide_vaccines(vaccine_per_group, available_vaccines, group_sizes)
+        if not self.two_doses:
+            available_vaccines = self.available_vaccines.get_available_vaccines([day], pop_size)[0]
+            actions = self._divide_vaccines(vaccine_per_group, available_vaccines, group_sizes)
+        else:
+            available_vaccines = self.available_vaccines.get_available_vaccines([day], pop_size)[0]
+            # Subtract the second dose for the given vaccines starting 14 days after day
+            # second_dose_day = day + self.second_dose_day
+            two_doses_required = copy.copy(available_vaccines)
+
+            for v_type, count in available_vaccines.items():
+                second_dose_day = day + self.second_dose_day
+                print(f"day {day}, available: {available_vaccines}")
+                while second_dose_day <= self.last_sim_day and two_doses_required[v_type] > 0:
+                    second_dose_day_available = self.available_vaccines.get_available_vaccines([second_dose_day], pop_size)[0]
+                    print(f"\tremoving from second doses on day {second_dose_day}: {second_dose_day_available}")
+                    # print(self.available_vaccines._vaccine_counts[self.available_vaccines.get_index(second_dose_day)])
+                    # exit()
+                    # print("v_type, count", v_type, count)
+                    if second_dose_day_available[v_type] == 0:
+                        second_dose_day += 1
+                        continue
+                    can_subtract = min(two_doses_required[v_type], second_dose_day_available[v_type])
+                    # print(v_type, can_subtract)
+                    self.available_vaccines._vaccine_counts[self.available_vaccines.get_index(second_dose_day)][
+                        v_type] -= can_subtract
+                    two_doses_required[v_type] -= can_subtract
+                    print(
+                        f"\t*new doses for day {second_dose_day}: {self.available_vaccines._vaccine_counts[self.available_vaccines.get_index(second_dose_day)]} (was {second_dose_day_available})")
+                    # Check the next day if more vaccines are needed
+                    second_dose_day += 1
+
+            actions = self._divide_vaccines(vaccine_per_group, available_vaccines, group_sizes)
         return actions
 
     def get_combined_action_old(self, arm, days, pop_size, group_sizes):
@@ -513,3 +548,17 @@ def latex_all_arms(aw):
 
     for a in range(aw.num_actions):
         print(f"{a} & " + " & ".join(aw.get_vaccine_names(a)), "\\\\\\hline")
+
+
+if __name__ == '__main__':
+
+    aw = NoWasteActionWrapper(available_vaccines=ObservedVaccineSupply(), two_doses=True, second_dose_day=28)  # TODO: 28
+
+    for day in range(40):
+        action = aw.get_combined_action(arm=0, day=day, pop_size=11000000, group_sizes={stride.AgeGroup.children.value: 800000,
+                                                                               stride.AgeGroup.youngsters.value: 1400000,
+                                                                               stride.AgeGroup.young_adults.value: 3000000,
+                                                                               stride.AgeGroup.adults.value: 5000000,
+                                                                               stride.AgeGroup.elderly.value: 800000,
+                                                                               })
+        print(day, action)

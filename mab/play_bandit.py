@@ -81,7 +81,8 @@ def run_bandit(parser_args):
     reward = get_reward(parser_args)
     env = create_stride_env(parser_args, reward=reward, reward_type=parser_args.reward_type,
                             is_childless=parser_args.childless, uptake=parser_args.uptake,
-                            action_wrapper=NoChildrenNoWasteActionWrapper if parser_args.childless else NoWasteActionWrapper)
+                            action_wrapper=NoChildrenNoWasteActionWrapper if parser_args.childless else NoWasteActionWrapper,
+                            two_doses=True, second_dose_day=28)  # TODO: abstract
     nr_arms = env.action_wrapper.num_actions
 
     # The sampling method
@@ -114,15 +115,15 @@ if __name__ == '__main__':
     args = parser.parse_args()
     # post = "TT"
     # m = "10"
-    # uptake = 0.7
+    # uptake = 0.9
     # args = parser.parse_args([
-    #     "./envs/stride_env/config/conf_0/config.xml", f"./results/top_{m}/{post}/",
+    #     "./envs/stride_env/config/conf_1/config.xml", f"/Users/alexandracimpean/Desktop/VSC_stride/SC1_Rhosp_U0.9/seed_0/",
     #     "--episodes", "2000", "--episode_duration", "120", "--reward", "hosp", "--reward_type", "norm",
-    #     "--posterior", post, "--top_m", m, "--seed", "123",
+    #     "--posterior", post, "--top_m", m, "--seed", "0",
     #     "--uptake", f"{uptake}",
     #     # "--childless"
     #     # "-l", "30", "-m", "5",
-    #     # "-c", "790", "-t", "791",
+    #     # "-c", "350", "-t", "351",
     # ])
 
     run_bandit(args)
