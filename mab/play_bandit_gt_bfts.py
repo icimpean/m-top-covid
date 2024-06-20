@@ -165,6 +165,7 @@ if __name__ == '__main__':
         #     "--posterior", post, "--top_m", m, "--seed", f"{seed}", "--algorithm", algo,
         # ])
         args.seed = seed
+        args.save_dir = "".join(args.save_dir.split("/")[:-1]) + f"/{seed}/"
         run_arm(args)
         t1 = time.time()
         print(f"Simulation {seed}, {t1-t0} seconds")
