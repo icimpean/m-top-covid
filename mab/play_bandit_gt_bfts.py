@@ -13,7 +13,7 @@ from args import parser as general_parser, create_stride_env, load_checkpoint
 from bandits import Bandit
 from mab.posteriors.bayesian_gaussian_mixture import BGMPosteriors
 from mab.posteriors.bnpy_gaussian_mixture import BNPYBGMPosteriors
-from mab.posteriors.gamma import GammaPosteriors
+# from mab.posteriors.gamma import GammaPosteriors
 from mab.posteriors.t_distribution import TDistributionPosteriors
 from mab.posteriors.truncated_t_distribution import TruncatedTDistributionPosteriors
 from sampling.bfts import BFTS
@@ -75,11 +75,11 @@ def create_posteriors(parser_args, nr_arms):
         print("Using Sklearn Bayesian Gaussian Mixture...")
         posteriors = BGMPosteriors(nr_arms, parser_args.seed, k=10, log_dir=Path(parser_args.save_dir).absolute())
         initialise_arms = 1
-    # Gamma
-    elif parser_args.posterior == "Gamma":
-        print("Using Gamma distribution...")
-        posteriors = GammaPosteriors(nr_arms, parser_args.seed, alpha=0.5, beta=0)
-        initialise_arms = 1
+    # # Gamma
+    # elif parser_args.posterior == "Gamma":
+    #     print("Using Gamma distribution...")
+    #     posteriors = GammaPosteriors(nr_arms, parser_args.seed, alpha=0.5, beta=0)
+    #     initialise_arms = 1
     # Unsupported
     else:
         raise ValueError(f"Unsupported posterior type: {parser_args.posterior}")
